@@ -4,7 +4,7 @@
 
 项目为纯静态前端 Demo，使用 HTML、CSS、JavaScript 与本地 mock 数据实现，可直接通过 GitHub Pages 或本地 HTTP 服务访问。
 
-在线访问：https://coof-bao.github.io/ai-live-product-demo/
+在线访问：https://coof-bao.github.io/Digital-Human-Anchor-Workspace/
 
 ## 项目简介
 
@@ -53,7 +53,7 @@ AI LIVE 的核心目标，是将数字人直播从“会念稿的虚拟主播”
 直接打开 GitHub Pages：
 
 ```text
-https://coof-bao.github.io/ai-live-product-demo/
+https://coof-bao.github.io/Digital-Human-Anchor-Workspace/
 ```
 
 ### 本地启动
