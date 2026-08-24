@@ -1,38 +1,70 @@
-# V3 AI LIVE 产品演示 Demo · 研发包
+# AI LIVE 数字人直播工作台 Demo
 
-可点击的前端原型，用于对齐 V3 商家端 / 平台端页面方案、数据契约与演示动线。**纯静态 HTML + JS + mock 数据**，无需后端部署、VPN 或内网凭证。
+面向商家端与平台端的 AI 数字人直播产品原型，展示从商家配置、素材解析、智能剧本生成到直播归因优化的完整链路。
 
-## 环境要求
+项目为纯静态前端 Demo，使用 HTML、CSS、JavaScript 与本地 mock 数据实现，可直接通过 GitHub Pages 或本地 HTTP 服务访问。
 
-| 项 | 要求 |
-|---|---|
-| Python | 3.x（macOS 自带即可） |
-| 浏览器 | Chrome / Safari / Edge 等现代浏览器 |
-| 网络 | 本地 `localhost` 即可；**不需要** VPN / 内网 AK |
+在线访问：https://coof-bao.github.io/ai-live-product-demo/
 
-## 安装
+## 项目简介
 
-```bash
-unzip v3-ai-live-product-demo.zip
-cd v3-ai-live-product-demo   # 解压后的目录名以实际 zip 为准
+AI LIVE 的核心目标，是将数字人直播从“会念稿的虚拟主播”升级为“可基于商品、素材与直播反馈持续迭代的 AI 直播工作台”。
+
+本 Demo 分为两个视角：
+
+| 视角 | 定位 | 核心用户 |
+|---|---|---|
+| 商家端 Seller Workbench | 低门槛完成数字人直播配置与脚本确认 | 商家、运营 |
+| 平台端 Internal Workbench | 管理素材解析、脚本生产、直播监控与优化闭环 | 产品、运营、算法、研发 |
+
+## 核心功能
+
+### 1. 商家端直播配置
+
+- 数字人形象选择
+- Market / Language 配置
+- 商品选择与卖点查看
+- 两种直播创建模式：
+  - 数字人背景模式
+  - Use your video 智能剧本模式
+- Storyboard 视图展示 9:16 直播画面、多轨时间轴与脚本编排
+- 支持脚本保存、片段查看、中文参考翻译等演示交互
+
+### 2. 平台端素材与脚本工作台
+
+- Material Studio：按商品查看素材源、解析进度与 Clip Bank
+- Clip 详情抽屉：展示缩略图、ASR、match score、推荐用途与采纳动作
+- Script Studio：展示直播大脑 JSON、多轨脚本与渲染契约
+- AI LIVE 直播监控看板：展示分钟级归因、异常诊断与优化建议
+- 脚本优化生产与测评：挂载算法对齐稿，呈现 prompt 优化与测评链路
+
+### 3. 数据与资产
+
+- 前端 mock 数据集中在 `demo/shared/data.js`
+- 商品图位于 `demo-assets/products/`
+- 数字人形象位于 `demo-assets/avatars/`
+- Clip Bank 样例位于 `demo-assets/clip-bank-samples/`
+- 方案文档位于 `docs/`
+
+## 使用方法
+
+### 在线访问
+
+直接打开 GitHub Pages：
+
+```text
+https://coof-bao.github.io/ai-live-product-demo/
 ```
 
-若从本仓库直接使用，进入 `V3最终版本方案讨论-FINAL/` 目录即可。
+### 本地启动
 
-## 启动
+进入项目根目录后执行：
 
 ```bash
 bash start_demo.sh
 ```
 
-macOS 也可双击 `start_demo.command`。
-
-脚本会：
-
-1. 检测 `python3`
-2. 从端口 `8012` 起找可用端口（被占用则递增）
-3. 以**本目录为根**启动 `python3 -m http.server`
-4. 自动打开浏览器到 Demo 落地页
+脚本会从端口 `8012` 开始寻找可用端口，并自动打开浏览器。
 
 指定端口：
 
@@ -40,91 +72,43 @@ macOS 也可双击 `start_demo.command`。
 PORT=8013 bash start_demo.sh
 ```
 
-停止服务：在启动脚本的终端按 `Ctrl+C`，或执行 `kill $(cat .demo_server.pid 2>/dev/null)`。
+停止服务：
 
-## 入口一览
+```bash
+kill $(cat .demo_server.pid 2>/dev/null)
+```
+
+也可以在启动服务的终端中按 `Ctrl+C`。
+
+### 页面入口
 
 | 页面 | 路径 | 说明 |
-|------|------|------|
-| 落地页 | `/demo/index.html` | 5 句 pitch + 选商家端 / 平台端 |
-| 商家端 | `/demo/seller/index.html` | V2 五步向导 + 双模式 + 智能剧本 Storyboard |
-| 平台端 | `/demo/platform/index.html` | Material / Script / 监控看板 / Workflow |
-| 方案阅读版 | `/docs/V3页面级方案-阅读版.html` | 完整方案（含批注层） |
-| 商家端方案 md | `/docs/V3商家端页面级方案（基于V2链路迭代）.md` | 页面级 PRD |
-| 平台端方案 md | `/docs/V3平台端内部工作台页面级方案.md` | 页面级 PRD |
-| 算法对齐稿 | `/docs/脚本生产与测评Pipeline-算法研发对齐稿.html` | 平台端 iframe 挂载 |
+|---|---|---|
+| Demo 入口 | `/demo/index.html` | 商家端与平台端入口 |
+| 商家端 | `/demo/seller/index.html` | 数字人直播创建流程 |
+| 平台端 | `/demo/platform/index.html` | 素材、脚本、归因与测评工作台 |
+| 方案阅读版 | `/docs/V3页面级方案-阅读版.html` | 完整方案阅读页 |
+| 算法对齐稿 | `/docs/脚本生产与测评Pipeline-算法研发对齐稿.html` | 脚本生产与测评说明 |
 
-默认地址示例：`http://localhost:8012/demo/index.html`
+## 项目结构
 
-## 3 分钟演示动线
-
-**商家端**
-
-1. 落地页 → 进入商家端
-2. Step1：选数字人形象 + Market/Language
-3. Step2：选品（coco shop 盲盒商品）
-4. 双模式：模式一（数字人背景）或模式二（Use your video）
-5. 模式二：进入 Storyboard，查看 9:16 多轨时间轴实时合成
-
-**平台端**
-
-1. Material Studio：按商品维度看 clip 详情（缩略图、match_score、推荐用途）
-2. Script Studio：6 轨时间轴 + 渲染契约
-3. AI LIVE 直播监控看板：分钟级归因示例
-4. 脚本优化生产 & 测评：iframe 加载算法对齐稿
-
-## 数据说明
-
-- 全部为**前端 mock + 预解析 JSON**，非生产 API
-- Clip Bank 样例：`demo-assets/clip-bank-samples/`（真实视频经 gemini 预解析的结构化 JSON + 抽帧缩略图）
-- 商品图：`demo-assets/products/`
-- 数字人形象：`demo-assets/avatars/`（Demo 用到的 8 张）
-- **可选 AI 代理**：`tools/video_parse_proxy.py` + `tools/start_parse_proxy.sh`（8789）
-  - 视频上传解析 → Gemini ModelHub
-  - 话术生成 / 重新生成 → GPT-5.5（Aicolate）
-  - 译成中文参考 → GPT-5.5 fast 模式
-  - 需办公网/VPN + 本机 `~/.config/gemini-modelhub` 与 `~/.config/aicolate` 凭证；无凭证时 Demo 仍可用预置数据 + 本地话术兜底
-
-## 目录结构
-
-```
+```text
 .
-├── README.md / PREVIEW.md
-├── start_demo.sh / start_demo.command / pack_for_rd.sh
-├── demo/                    # 可点击页面
-├── demo-assets/             # 样例资产（avatars / clip-bank / products）
-├── tools/                   # 可选：video_parse_proxy + 启动脚本
-└── docs/                    # 方案文档
+├── demo/                    # 可点击前端页面
+│   ├── index.html            # Demo 入口
+│   ├── seller/               # 商家端页面
+│   ├── platform/             # 平台端页面
+│   └── shared/               # 公共样式、数据与交互逻辑
+├── demo-assets/              # 商品图、数字人形象、Clip Bank 样例
+├── docs/                     # 产品方案与算法对齐文档
+├── tools/                    # 可选本地 AI 代理脚本
+├── index.html                # GitHub Pages 根入口跳转
+├── start_demo.sh             # 本地启动脚本
+└── pack_for_rd.sh            # 打包脚本
 ```
 
-## 常见问题
+## 运行说明
 
-**形象图或 clip 缩略图破图**
-
-- 必须从包根目录起 HTTP 服务，不要用 `file://` 直接打开 HTML
-
-**端口被占用**
-
-```bash
-PORT=8013 bash start_demo.sh
-```
-
-**平台端「脚本优化生产 & 测评」iframe 空白**
-
-- 确认 `docs/脚本生产与测评Pipeline-算法研发对齐稿.html` 存在
-- 确认通过 `http://localhost:PORT/...` 访问，而非本地文件路径
-
-## 产品侧重新打包
-
-在本目录执行：
-
-```bash
-bash pack_for_rd.sh
-```
-
-产出：
-
-- 包内：`v3-ai-live-product-demo.zip`
-- 桌面副本：`~/Desktop/AI-LIVE-V3-Demo-商家端+平台端.zip`（方便直接发给设计师/研发）
-
-解压后先看 **`PREVIEW.md`**（30 秒启动 + 双端入口），完整说明见 **`README.md`**。
+- 推荐通过 HTTP 服务访问，不建议用 `file://` 直接打开 HTML，否则部分相对路径和 iframe 可能不可用。
+- Demo 默认使用本地 mock 与预解析数据，不依赖后端服务。
+- `tools/video_parse_proxy.py` 为可选代理，仅用于连接内部模型服务；没有凭证时不影响基础 Demo 体验。
