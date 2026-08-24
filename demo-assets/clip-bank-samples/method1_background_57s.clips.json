@@ -1,0 +1,220 @@
+{
+  "asset": {
+    "merchant": {
+      "shop_id": "7494386460125857294",
+      "shop_name": "coco shop",
+      "handle": "7colorsbunny",
+      "author_id": "7341325938133500970"
+    },
+    "source": "method1_background",
+    "original_filename": "background短视频_勺取深红珠装盒_A1-A8紫底_57s.mp4",
+    "duration_sec": 57.0,
+    "format": "MP4 / 1080x1920 / 30fps / H.264",
+    "has_speech": null,
+    "has_speech_status": "placeholder_no_asr_this_version",
+    "frame_sample_fps": 1,
+    "parsed_by": "gemini-3-pro-preview-new",
+    "method": "1fps frame sampling -> gemini shot-boundary + semantic aggregation"
+  },
+  "summary": {
+    "main_product_guess": "Custom Bead Mix / 'Bead Scoop' Service",
+    "main_product_guess_zh": "定制珠子混合/“挖珠”服务",
+    "overall_tags": [
+      "beads",
+      "DIY",
+      "crafting",
+      "jewelry making",
+      "ASMR",
+      "bead scoop",
+      "bead confetti",
+      "手工艺",
+      "串珠"
+    ],
+    "shot_count": 7
+  },
+  "clips": [
+    {
+      "clip_index": 1,
+      "start_sec": 0,
+      "end_sec": 2,
+      "clip_type": "bg",
+      "visual": "A static wide shot shows multiple clear bins filled with a large variety of colorful beads.",
+      "visual_zh": "静态广角镜头展示了多个装满各种彩色珠子的透明盒子。",
+      "tags": [
+        "beads",
+        "craft supplies",
+        "variety display",
+        "colorful"
+      ],
+      "recommend_use": "background",
+      "recommend_reason": "Good establishing shot to show product variety, but no action.",
+      "match_score": 80,
+      "highlight": false,
+      "thumbnail": "frames/method1_background_57s/f_002.jpg",
+      "asr": null,
+      "asr_lang": null,
+      "asr_status": "placeholder_no_asr_this_version",
+      "visual_layer": "background"
+    },
+    {
+      "clip_index": 2,
+      "start_sec": 3,
+      "end_sec": 9,
+      "clip_type": "bg",
+      "visual": "A person holds up and shows the camera a small, empty, clear plastic container.",
+      "visual_zh": "一个人举起一个小的、空的、透明的塑料容器给镜头看。",
+      "tags": [
+        "packaging",
+        "container",
+        "setup"
+      ],
+      "recommend_use": "background",
+      "recommend_reason": "Shows the packaging, but is only a preparatory step, not a highlight.",
+      "match_score": 60,
+      "highlight": false,
+      "thumbnail": "frames/method1_background_57s/f_007.jpg",
+      "asr": null,
+      "asr_lang": null,
+      "asr_status": "placeholder_no_asr_this_version",
+      "visual_layer": "background"
+    },
+    {
+      "clip_index": 3,
+      "start_sec": 10,
+      "end_sec": 24,
+      "clip_type": "strong",
+      "visual": "A person scoops dark red beads from bin A5 and pours them into a section of the container, then closes and presents it.",
+      "visual_zh": "一个人从A5号盒子中舀出深红色的珠子，倒入容器的一个隔间，然后盖上盖子并展示它。",
+      "tags": [
+        "bead scoop",
+        "ASMR",
+        "order filling",
+        "product demonstration"
+      ],
+      "recommend_use": "foreground",
+      "recommend_reason": "Clear, complete action of scooping and showing the result. Core selling activity.",
+      "match_score": 95,
+      "highlight": true,
+      "thumbnail": "frames/method1_background_57s/f_018.jpg",
+      "asr": null,
+      "asr_lang": null,
+      "asr_status": "placeholder_no_asr_this_version",
+      "visual_layer": "foreground"
+    },
+    {
+      "clip_index": 4,
+      "start_sec": 25,
+      "end_sec": 36,
+      "clip_type": "strong",
+      "visual": "The person re-opens the box, adds another scoop of red beads to fill it up, and shows the full container.",
+      "visual_zh": "该人重新打开盒子，再加入一勺红色珠子将其装满，并展示装满的容器。",
+      "tags": [
+        "bead scoop",
+        "topping up",
+        "product demonstration"
+      ],
+      "recommend_use": "foreground",
+      "recommend_reason": "Demonstrates filling a larger quantity. A bit repetitive but still a useful action clip.",
+      "match_score": 85,
+      "highlight": false,
+      "thumbnail": "frames/method1_background_57s/f_031.jpg",
+      "asr": null,
+      "asr_lang": null,
+      "asr_status": "placeholder_no_asr_this_version",
+      "visual_layer": "foreground"
+    },
+    {
+      "clip_index": 5,
+      "start_sec": 37,
+      "end_sec": 50,
+      "clip_type": "strong",
+      "visual": "A second compartment is filled with a different, colorful mix of beads from bin A2, and the box is shown.",
+      "visual_zh": "从A2号盒子中取出不同的彩色珠子混合物填充第二个隔间，并展示盒子。",
+      "tags": [
+        "bead scoop",
+        "bead mix",
+        "variety",
+        "customization"
+      ],
+      "recommend_use": "foreground",
+      "recommend_reason": "Shows a different product variant and the process of a multi-item order.",
+      "match_score": 95,
+      "highlight": true,
+      "thumbnail": "frames/method1_background_57s/f_044.jpg",
+      "asr": null,
+      "asr_lang": null,
+      "asr_status": "placeholder_no_asr_this_version",
+      "visual_layer": "foreground"
+    },
+    {
+      "clip_index": 6,
+      "start_sec": 51,
+      "end_sec": 54,
+      "clip_type": "strong",
+      "visual": "Two finished boxes with different bead mixes are held up side-by-side for comparison.",
+      "visual_zh": "两个装有不同珠子混合物的成品盒子并排举起进行比较。",
+      "tags": [
+        "product comparison",
+        "final product",
+        "reveal"
+      ],
+      "recommend_use": "foreground",
+      "recommend_reason": "Excellent summary shot to compare different options and show the final product.",
+      "match_score": 100,
+      "highlight": true,
+      "thumbnail": "frames/method1_background_57s/f_053.jpg",
+      "asr": null,
+      "asr_lang": null,
+      "asr_status": "placeholder_no_asr_this_version",
+      "visual_layer": "foreground"
+    },
+    {
+      "clip_index": 7,
+      "start_sec": 55,
+      "end_sec": 56,
+      "clip_type": "risk",
+      "visual": "The video ends with a blurry shot as a hand moves erratically, obstructing the camera view.",
+      "visual_zh": "视频以一个模糊的镜头结束，一只手不规则地移动，挡住了摄像头的视线。",
+      "tags": [
+        "blurry",
+        "obstructed view",
+        "bad ending"
+      ],
+      "recommend_use": "none",
+      "recommend_reason": "Unusable footage, camera is obstructed.",
+      "match_score": 0,
+      "highlight": false,
+      "thumbnail": "frames/method1_background_57s/f_056.jpg",
+      "asr": null,
+      "asr_lang": null,
+      "asr_status": "placeholder_no_asr_this_version",
+      "visual_layer": "none"
+    }
+  ],
+  "_usage": {
+    "completion_tokens": 1410,
+    "prompt_tokens": 15482,
+    "total_tokens": 20315,
+    "reasoning_tokens": 3423,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "traffic_type": "ON_DEMAND",
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 776
+      },
+      {
+        "modality": "IMAGE",
+        "tokenCount": 14706
+      }
+    ],
+    "candidatesTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1410
+      }
+    ]
+  }
+}

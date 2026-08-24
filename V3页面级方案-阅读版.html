@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V3 页面级方案 · 阅读版</title>
+<style>
+:root{
+  --teal:#0E8C7F; --teal-d:#0a6b61; --teal-soft:#e9f4f2;
+  --ink:#1f2421; --muted:#6b6b6b; --line:#e6e8e7; --bg:#f6f7f7; --paper:#ffffff;
+  --green:#3a7d44; --amber:#b8860b; --blue:#2b6cb0; --red:#c0392b; --grey:#9aa0a0;
+  --code:#eef2f1; --note:#eff6f2;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif;line-height:1.65;font-size:14.5px}
+header{position:sticky;top:0;z-index:20;background:#15201d;color:#fff;padding:12px 22px;box-shadow:0 1px 8px rgba(0,0,0,.18)}
+header .ttl{font-size:15px;font-weight:800;letter-spacing:.3px}
+header .sub{font-size:11.5px;color:#b9c4c0;margin-top:2px}
+.tabs{margin-top:10px;display:flex;gap:8px}
+.tabs button{border:1px solid #2f3d39;background:#1d2a26;color:#cdd6d3;padding:7px 16px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer}
+.tabs button.active{background:var(--teal);border-color:var(--teal);color:#fff}
+.wrap{display:flex;align-items:flex-start;max-width:1180px;margin:0 auto;padding:0 18px}
+nav.toc{position:sticky;top:96px;width:248px;flex:0 0 248px;max-height:calc(100vh - 110px);overflow:auto;padding:16px 10px 30px 0;font-size:12.5px}
+nav.toc .toc-block{display:none}
+nav.toc .toc-block.active{display:block}
+nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:4px 9px;border-radius:6px;border-left:2px solid transparent}
+nav.toc a:hover{background:var(--teal-soft);color:var(--teal-d)}
+nav.toc a.lv3{padding-left:22px;font-size:12px;color:#8a8f8d}
+main{flex:1;min-width:0;padding:18px 6px 80px 20px}
+.doc{display:none}
+.doc.active{display:block}
+.card-meta{background:var(--teal-soft);border:1px solid #cfe6e1;border-radius:9px;padding:13px 16px;font-size:12.5px;color:#2c4641;margin-bottom:18px}
+.card-meta b{color:var(--teal-d)}
+h1{font-size:22px;font-weight:850;margin:6px 0 4px}
+h2{font-size:17px;font-weight:800;margin:30px 0 10px;padding-top:10px;border-top:2px solid var(--line);color:#15201d;scroll-margin-top:104px}
+h2 .sec{color:var(--teal);font-weight:850}
+h3{font-size:14.5px;font-weight:800;margin:18px 0 7px;color:var(--teal-d);scroll-margin-top:104px}
+p{margin:8px 0}
+ul{margin:7px 0;padding-left:22px}
+li{margin:3px 0}
+code{background:var(--code);color:#0a6b61;border-radius:4px;padding:1px 6px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12.5px}
+pre{background:#1f2a27;color:#e8efec;border-radius:8px;padding:14px 16px;overflow:auto;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12px;line-height:1.5;border-left:3px solid var(--teal)}
+pre code{background:none;color:inherit;padding:0}
+blockquote{margin:10px 0;background:var(--note);border-left:3px solid var(--teal);border-radius:0 7px 7px 0;padding:9px 14px;color:#3a4a46;font-size:13px}
+table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px;background:var(--paper)}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--teal-soft);color:var(--teal-d);font-weight:700}
+tr:nth-child(even) td{background:#fafbfb}
+.warn{color:var(--amber);font-weight:700}
+.no{color:var(--red);font-weight:700}
+.ok{color:var(--green);font-weight:700}
+hr{border:none;border-top:1px dashed var(--line);margin:22px 0}
+.tip{font-size:11.5px;color:var(--muted);margin-top:6px}
+.ann-pop{position:absolute;z-index:80;background:#15201d;border-radius:9px;padding:9px;box-shadow:0 6px 18px rgba(0,0,0,.32);width:248px}
+.ann-pop textarea{width:100%;height:56px;border:none;border-radius:6px;padding:7px;font-size:12.5px;resize:vertical;font-family:inherit;box-sizing:border-box}
+.ann-pop .row{display:flex;gap:6px;margin-top:7px;justify-content:flex-end}
+.ann-pop button{border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer}
+.ann-pop .save{background:var(--teal);color:#fff}
+.ann-pop .cancel{background:#3a4a46;color:#cdd6d3}
+mark.cm{background:#fff3bf;border-bottom:2px solid var(--amber);cursor:pointer;border-radius:2px;padding:0 1px}
+#ann-fab{position:fixed;right:20px;bottom:20px;z-index:90;background:var(--teal);color:#fff;border:none;border-radius:26px;padding:11px 18px;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 5px 16px rgba(14,140,127,.42)}
+#ann-panel{position:fixed;right:20px;bottom:66px;z-index:90;width:368px;max-height:74vh;display:none;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:13px;box-shadow:0 10px 34px rgba(0,0,0,.24);overflow:hidden}
+#ann-panel.open{display:flex}
+#ann-panel .hd{padding:11px 14px;border-bottom:1px solid var(--line);font-weight:800;display:flex;justify-content:space-between;align-items:center}
+#ann-panel .hd span{cursor:pointer;color:var(--muted)}
+#ann-panel .acts{display:flex;gap:6px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid var(--line)}
+#ann-panel .acts button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;color:var(--teal-d)}
+#ann-list{overflow:auto;padding:4px 0}
+.ann-item{padding:9px 14px;border-bottom:1px solid #f0f2f2;font-size:12.5px}
+.ann-item .sec{color:var(--teal-d);font-weight:800;font-size:11.5px;margin-bottom:2px}
+.ann-item .q{color:#7a7f7d;font-style:italic;margin:3px 0;border-left:2px solid var(--amber);padding-left:7px}
+.ann-item .c{color:var(--ink)}
+.ann-item .mini{margin-top:5px;display:flex;gap:12px}
+.ann-item .mini a{color:var(--blue);cursor:pointer;font-size:11px;text-decoration:none}
+.ann-empty{padding:22px;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.7}
+</style>
+</head>
+<body>
+<header>
+  <div class="ttl">V3 页面级方案 · 阅读版（讨论稿）</div>
+  <div class="sub">商家端严格沿用 V2 视觉规范做增量 · 平台端为内部工作台 · 图片识别统一 gemini-3-pro-preview-new｜批注请引用「§编号 + 小节名」</div>
+  <div class="tabs">
+    <button id="tab-seller" class="active" onclick="showTab('seller')">🧑‍💼 商家端方案</button>
+    <button id="tab-platform" onclick="showTab('platform')">🏭 平台端内部工作台</button>
+  </div>
+</header>
+<div class="wrap">
+  <nav class="toc">
+    <div id="seller-toc" class="toc-block active"></div>
+    <div id="platform-toc" class="toc-block"></div>
+  </nav>
+  <main>
+    <section id="seller-doc" class="doc active">
+<h1>V3 商家端页面级方案（基于 V2 链路迭代）</h1>
+<div class="card-meta">
+<b>一句话</b>：在 V2「Create AI LIVE」五步向导链路上做<b>增量迭代</b>（不重构），承载体验 / 商家输入 / 埋点回流三件事；脚本如何生产、如何自动迭代、provenance、diff、prompt、归因——商家全程无感（属平台端）。<br>
+<b>硬约束</b>：交互 / 配色 / 布局 / 字体严格沿用 <code>产品方案.png</code> + <code>V2已实现功能与商家端视觉交互规范.md</code>；图片识别统一 <code>gemini-3-pro-preview-new</code>（对商家透明）。
+</div>
+<blockquote>双端原则（最高优，见规则 <code>digital-human-live-baseline.mdc</code>）：本文档<strong>只</strong>描述 🧑‍💼 商家端＝流程与 UI 体验 + 商家必要输入 + 每步操作埋点回流。所有"脚本怎么生产 / 怎么自动迭代 / provenance / diff / prompt / 归因"一律不在商家端出现，归 🏭 平台端。</blockquote>
+
+<h2 id="s-0"><span class="sec">§0</span> 设计硬约束（先读，全文适用）</h2>
+<table>
+<tr><th>约束</th><th>内容</th></tr>
+<tr><td><strong>不重构链路</strong></td><td>维持 V2「<code>← Create AI LIVE</code> + 顶部 Stepper + 左/中工作区 + 右侧 9:16 Preview + 底部 Save/Previous/Next」五步壳，V3 只在<strong>步内做增量</strong>，不改步骤数、不改跳转顺序</td></tr>
+<tr><td><strong>配色</strong></td><td>主色/主按钮/选中态/完成态＝<strong>Teal</strong>；顶导黑；<code>Go live now</code> 红；信息引导 banner 浅绿底；Tips 气泡 浅蓝/紫；状态色 Live 红粉 / Ready 绿 / Generating 蓝 / Ended 灰 / Draft 琥珀。<strong>不得引入新色</strong>。</td></tr>
+<tr><td><strong>组件</strong></td><td>一律复用 V2：可选卡片（选中＝teal 边框+右上 ✓，hover 删除）/ 缩略图右下时长 badge / 可编辑标题 ✏️ / 二选一 radio 互斥+二次确认 / 拖拽 ⠿ / 浅绿信息 banner（可 ×）/ Tips 帮助卡 / 上传 dropzone / 破坏性操作二次确认弹窗 / Toast / 分页。新功能必须<strong>套用既有组件</strong>，不新造控件。</td></tr>
+<tr><td><strong>语言</strong></td><td>UI 默认英文；脚本区保留 <code>Show scripts in Chinese</code> 切换；命中违禁词正文 highlight。</td></tr>
+<tr><td><strong>图片识别</strong></td><td>凡画面/图片识别（素材封面理解、自动分镜、人格卡品类匹配、背景图生成）→ 一律 <code>gemini-3-pro-preview-new</code>（ModelHub 内网）。这些<strong>全在平台侧异步发生</strong>，商家端只看结果（缩略图/标签/进度），<strong>不暴露模型与过程</strong>。</td></tr>
+<tr><td><strong>预览</strong></td><td>右侧 9:16 手机壳沿用 V2：顶 13% 平台 UI、底 17% 评论购物车安全区，数字人不被遮挡。</td></tr>
+</table>
+<p><strong>V3 商家端可感知迭代清单</strong>（其余对商家无感）：</p>
+<ul>
+<li><strong>Step1</strong>：数字人选择升级为<strong>人格卡画廊</strong>（品类标签 + 筛选器）；新增 <strong>Market（直播国家，本期 US）+ Language（English / Spanish）</strong>，语言<strong>联动过滤数字人画廊</strong>。</li>
+<li><strong>Step2 完成后</strong>：新增<strong>「双模式」全屏二选一卡片</strong>——🅐 <strong>经典分步（Classic）</strong> / 🅑 <strong>智能剧本（Smart Storyboard）</strong>；新商家默认模式一、<strong>本场选定后不可切换</strong>。</li>
+<li><strong>模式一<span class="ok">【P0】</span></strong>：沿用 V2 五步（Step3 Set up scenes → Step4 Generate scripts <strong>纯 List</strong> → Step5），各步吸收 V3 增量。脚本＝<strong>V2 既有脚本生成能力</strong>。</li>
+<li><strong>模式二<span class="warn">【P2】</span></strong>：把 Step3 + Step4 <strong>合并为一步 = LIVE Storyboard（timeline 视图）</strong>，多轨对齐时间轴；由<strong>平台端 Script Studio 主-子 Agent 编排</strong>驱动（架构先设计、实现后置 P2）。</li>
+<li>散落字段：禁讲内容、商家备注、整场流程偏好、Market/Language（见各步「商家输入新增」）。</li>
+</ul>
+<blockquote><strong>优先级标签（本文档逐模块标注 · Log 0025）</strong>：<span class="ok">【P0】</span>＝模式一 + 平台端素材加工；<span class="warn">【P1】</span>＝平台端归因/诊断（商家无感）；<span class="warn">【P2】</span>＝模式二智能剧本（架构预留、实现后置）。<strong>两模式同产一份「直播大脑 JSON」、平台端生产不分叉</strong>；模式仅商家端编辑形态差异（平台端轻感知 <code>mode</code> 字段用于归因）。</blockquote>
+
+<h2 id="s-1"><span class="sec">§1</span> 全局壳（沿用 V2，零改动）</h2>
+<ul>
+<li>后台容器：TikTok Shop <strong>LIVE Manager</strong>（顶部黑导航：logo | LIVE Manager | 🔔 + <code>123@byte.com</code> + <code>English ▾</code>）。</li>
+<li>左侧导航：… / LIVE tools / <strong>AI LIVE</strong> / …；顶部红 <code>Go live now</code>。</li>
+<li>向导壳：<code>← Create AI LIVE</code> + Stepper（已完成 teal ✓ / 当前 teal 实心 / 未到 灰）。</li>
+<li>底部操作条：<code>Save</code>（次）/ <code>Previous</code>（次）/ <code>Next</code>｜主操作（teal）右下对齐。</li>
+</ul>
+<blockquote>V3 不动任何全局结构。下面只写"步内增量"。</blockquote>
+
+<h2 id="s-2"><span class="sec">§2</span> AI LIVE List（列表页）· 增量 <span class="ok">【P0】</span></h2>
+<p><strong>V2 现状</strong>：表格列（LIVE name / 状态 pill / 数据列 / Action：<code>View data</code>·<code>Go LIVE</code>·<code>Edit</code>），顶部 <code>+ Create AI LIVE</code>，分页。</p>
+<p><strong>V3 增量（轻）</strong>：</p>
+<ul>
+<li>状态 pill 复用 V2 配色，新增 <code>Draft</code>（琥珀）覆盖"已存未发"草稿；其余 Live/Ready/Generating/Ended 不变。</li>
+<li>Action 列保持 <code>View data / Go LIVE / Edit</code> 三按钮<strong>不变</strong>（归因/复盘详情在平台端，商家点 <code>View data</code> 仍只看 V2 既有数据面板，不暴露 provenance/归因）。</li>
+</ul>
+<p><strong>商家输入新增</strong>：无。<br><strong>埋点回流</strong>：<code>list_create_click</code> / <code>list_edit_click</code> / <code>list_golive_click</code> / <code>list_viewdata_click</code>。</p>
+<h2 id="s-3"><span class="sec">§3</span> Step 1 · Set up LIVE — 数字人<strong>人格卡画廊</strong> + <strong>直播国家/语言</strong>（核心增量① <span class="ok">【P0】</span>）</h2>
+<p><strong>V2 现状</strong>：LIVE name 输入 + 数字人卡片网格（试听 <code>Listen 3s</code> + 音色风格 Tag）+ 背景（Background templates / My own image 两 Tab）+ 右侧 9:16 预览 + Save/Next。</p>
+<p><strong>V3 增量</strong>：① 顶部新增 <strong>Market + Language</strong>（决定下游脚本/素材语言）；② 数字人卡片网格升级为<strong>人格卡画廊</strong>（Log 0009 维持"先选人"）；③ <strong>语言联动过滤画廊</strong>。</p>
+<h3 id="s-3-1">UI 展示逻辑（中栏 · Set up LIVE，自上而下，控件全部沿用 V2）</h3>
+<ul>
+<li><strong>① LIVE basics（沿用 V2 表单区）</strong>
+  <ul>
+  <li><code>LIVE name</code>：单行文本输入（V2 既有）。</li>
+  <li>🆕 <code>Market ▾</code>（直播国家，下拉）：本期<strong>仅 <code>United States (US)</code> 单选</strong>且默认选中、置灰不可改（为未来多国预留）。</li>
+  <li>🆕 <code>Language ▾</code>（直播语言，下拉）：两项 <strong><code>English</code> / <code>Spanish</code></strong>，默认 English。<strong>ⓘ 帮助气泡</strong>说明"决定口播语言与可用数字人，一场一种语言不可混播"。<br><strong>联动</strong>：切换 Language → <strong>下方人格卡画廊即时过滤</strong>，仅显示支持该语言的形象/音色；若已选数字人不支持新语言 → 二次确认弹窗提示清空已选。</li>
+  </ul>
+</li>
+<li><strong>② Choose avatar hosts（人格卡画廊）</strong>
+  <ul>
+  <li><strong>筛选器条</strong>（沿用 V2 表格筛选样式）：品类 <code>Category ▾</code>（<strong>默认值平台预选</strong>：注册主营类目 / 近 30 天动销额最大类目；可改）、族裔 <code>Ethnicity ▾</code>、价格带 <code>Price tier ▾</code>。<strong>语言不在此处选</strong>（已上移为 <code>Language ▾</code> 并联动过滤）。右侧 <code>See more</code>。</li>
+  <li><strong>人格卡</strong>（V2 可选卡片，选中＝teal 边框+✓）含：头像缩略图 + 姓名（英文名+中文音译）+ <strong>一句话定位</strong> + <strong>品类标签 Tag</strong> + 价格带 Tag + <strong>语言能力 Tag（EN/ES）</strong> + <code>▶ Listen</code> 试听 + 音色风格 Tag。</li>
+  <li>选中后右侧 9:16 预览实时换该数字人底板。</li>
+  </ul>
+</li>
+<li><strong>③ Set up LIVE background（沿用 V2 两 Tab）</strong>：<code>Background templates</code> / <code>My own image</code>，可选卡片 + <code>See more</code> + 上传 dropzone。<strong>此处即"全局背景"入口</strong>。</li>
+<li><strong>④ 底部操作条</strong>：<code>Save</code>（次）/ <code>Next</code>（teal 主，右下）。</li>
+</ul>
+<h3 id="s-3-2">商家输入新增</h3>
+<ul>
+<li>🆕 <strong>Market（US，本期固定）+ Language（English / Spanish）</strong>：<strong>核心前置输入</strong>——决定下游脚本口播语言、合规口径、素材 ASR/打标语言、数字人音色（进平台端 <code>shared_context.market / language</code>）。<strong>一场一语言不可混播</strong>（Log 0022）。</li>
+<li>LIVE name（V2 既有）。</li>
+<li>数字人形象选择（V2 既有，体验升级为人格卡；受 Language 联动过滤）。</li>
+<li>背景（V2 既有）。<strong>此处即"全局背景"设置入口</strong>：除背景图外，V3 支持上传<strong>直播间维度的背景视频</strong>（贯穿整场、循环播放），Step3 不再重复设全局背景。</li>
+</ul>
+<h3 id="s-3-3">图片识别点（平台侧，商家无感）</h3>
+<ul>
+<li>人格卡的"品类标签/适配建议"由平台侧用 <code>gemini-3-pro-preview-new</code> 对底板画面 + 人格设定预生成并入库；商家端只读标签。</li>
+<li>背景图生成（默认结合所选商品出 4 张）＝ V2 既有 P0 算法，渲染侧能力不变。</li>
+</ul>
+<p><strong>埋点回流</strong>：<code>s1_market_set</code>（恒 US）、<code>s1_language_set</code>（en/es）、<code>s1_avatar_filter_change</code>、<code>s1_avatar_listen</code>、<code>s1_avatar_select</code>（含语言是否匹配）、<code>s1_bg_select</code> / <code>s1_bg_upload</code>、<code>s1_global_bg_set</code>（类型 image/video）。</p>
+
+<h2 id="s-4"><span class="sec">§4</span> Step 2 · Select product（选品）· 增量（轻）<span class="ok">【P0】</span></h2>
+<p><strong>V2 现状</strong>：<code>+ Add products</code> + 表格（Product 图+名+<code>ID</code> / Price / Stock / Item sold / Remove）+ Save/Previous/Next。</p>
+<p><strong>V3 增量 · 核心原则</strong>：作为 TikTok Shop US 平台方，商家在架可售商品平台数据库<strong>全部覆盖</strong>——商家选完商品后，<strong>商品标题 / 价格 / 品类 / 描述 / 图片 一律不需要商家填写</strong>，平台结合所选商品从<strong>商品数据库自动带出</strong>。<strong>不存在"库里没有的品"，故全程无任何商品信息手填入口。</strong> 商家端只做"选品 + 卖点/禁讲两处选填增强"：</p>
+<ul>
+<li><strong>A. 选品</strong>（V2 既有 <code>+ Add products</code>）：选中后图/名/ID/Price/Stock/品类/描述/图片 <strong>全部由商品库自动带出，商家零填写</strong>，展开行只读展示（可纠错但非必填）。</li>
+<li><strong>B. 卖点 / 禁讲（唯一两处商家"可选输入"，强烈建议填）</strong>：行内点 <code>▸</code> 展开 <strong>More settings</strong>，仅承载两列：
+  <ul>
+  <li><strong>Selling points / 卖点备注</strong>（多行文本，<strong>选填、强烈建议填</strong>）——"必须讲的卖点"。商家最懂自家商品。</li>
+  <li><strong>Do-not-say / 禁讲内容</strong>（多行文本，<strong>选填、强烈建议填</strong>，红色 ⓘ"将作为合规与生成约束"）——"不能讲的"。</li>
+  <li>📌 价值锚点（记忆库）：卖点/禁讲连同人群洞察沉淀进<strong>商家记忆库</strong>复用。例：英国卖 57 英镑手机，直播间常问"能否在非洲用"，回查留评账号多为非洲用户→沉淀"非洲专场"文案因子，下次自动复用。</li>
+  </ul>
+</li>
+</ul>
+<blockquote>卖点/禁讲是商家端"可选必要输入"，<strong>消费方在平台端</strong>（进解析与生成 prompt 约束、合规左移 + 记忆库沉淀），商家端只采集、不展示如何被使用。</blockquote>
+<p><strong>埋点回流</strong>：<code>s2_product_add</code> / <code>s2_product_remove</code> / <code>s2_sellingpoints_edit</code> / <code>s2_donotsay_edit</code>。（商品信息全部由平台带出，无商家编辑埋点）</p>
+
+<h2 id="s-4-5"><span class="sec">§4.5</span> 模式选择 · <strong>双模式全屏二选一卡片</strong>（Step2→Step3 之间）</h2>
+<p><strong>触发时机</strong>：Step2 选品完成、点 <code>Next</code> 离开 Step2 时，<strong>全屏覆盖一张二选一卡片页</strong>（非弹框、占满工作区，沿用 V2 卡片视觉 + teal 选中态）。<strong>新商家默认高亮模式一</strong>；<strong>本场一旦进入后续步骤即锁定，不可中途切换</strong>（Log 0023）。</p>
+<h3 id="s-4-5-1">UI 展示逻辑（全屏 · Choose your scripting mode）</h3>
+<ul>
+<li>顶部标题 <code>Choose how you build this LIVE</code> + 副标题 <code>You can't switch modes for this LIVE after you continue.</code></li>
+<li><strong>左右两张大卡（V2 可选卡片放大版，选中＝teal 边框+✓）</strong>：</li>
+</ul>
+<table>
+<tr><th></th><th>🅐 <strong>Classic · 经典分步 <span class="ok">【P0】</span></strong></th><th>🅑 <strong>Smart Storyboard · 智能剧本 <span class="warn">【P2】</span></strong></th></tr>
+<tr><td>角标</td><td><code>Recommended for new sellers</code></td><td><code>Advanced</code></td></tr>
+<tr><td>一句话</td><td>一步步搭：选品→搭场景→生成脚本→开播</td><td>一个时间轴搞定：场景＋脚本合并编排</td></tr>
+<tr><td>流程缩略图</td><td>Step3 Set up scenes → Step4 Generate scripts(<strong>List</strong>) → Step5</td><td>Step3+4 合并＝<strong>LIVE Storyboard(timeline)</strong> → Step5</td></tr>
+<tr><td>适合</td><td>想要可控、熟悉 V2 的商家</td><td>想一屏掌控全场画面/口播/互动节奏的进阶商家</td></tr>
+<tr><td>底部按钮</td><td><code>Use Classic</code>（teal 主按钮）</td><td><code>Use Smart Storyboard</code>（teal 主按钮）</td></tr>
+</table>
+<ul>
+<li>选中任一卡 → 进入对应 Step3。底部 <code>Previous</code> 可退回 Step2。</li>
+<li>模式二若当前为 P2 未上线：卡 🅑 置灰 + <code>Coming soon</code> 角标，仅展示不可选（架构预留）。</li>
+</ul>
+<p><strong>埋点回流</strong>：<code>mode_card_view</code>、<code>mode_select</code>（mode=classic/smart、是否新商家默认、是否被改）。<strong><code>mode</code> 写入该场 <code>shared_context.mode</code></strong>，贯穿后续埋点与平台端归因。</p>
+
+<h2 id="s-5"><span class="sec">§5</span> Step 3 · Set up scenes — 点开<strong>素材库弹框</strong>（核心增量② <span class="ok">【P0】</span>模式一 / 模式二合并入 Storyboard）</h2>
+<p><strong>V2 现状</strong>：三栏（左 LIVE Flow / 中 Set up scenes 的 Scene 卡 / 右 9:16）；Scene 卡二选一 radio：<code>Use avatar</code>（方式1 三层合成）/ <code>Use your video</code>（方式2 商家素材）；Overlay foreground 上传；浅绿"AI 已自动生成 storyboard"banner。</p>
+<blockquote><strong>左栏 <code>LIVE Flow</code> 结构约定</strong>：一场直播 = <strong>一个开场文案 + 商品列表 + 一个结尾文案</strong>；<code>Set up scenes</code> 围绕<strong>一个品的多个卖点</strong>展开，<strong>一个卖点 = 一个 Scene</strong>。即 <code>Opening → 品1(Scene×N) → 品2(Scene×N) → … → Closing</code>。</blockquote>
+<p><strong>V3 增量</strong>：在 V2 的两个上传/选择入口上<strong>挂载素材库弹框</strong>（不改三栏布局、不改二选一逻辑）。<strong>方式1 与方式2 打开的是同一个素材库弹框</strong>（同一份商家素材库，不是两个独立弹框）：</p>
+<ul>
+<li>方式1 子行 <code>Background: 🪑Default ✏️</code> → 点 ✏️ 打开素材库弹框。</li>
+<li>方式2 <code>Use your video</code> → 点缩略图区/<code>Upload</code> 打开<strong>同一个</strong>素材库弹框。</li>
+</ul>
+<h3 id="s-5-1">素材库弹框（复用 V2 弹窗 + 可选卡片 + dropzone + 分页）</h3>
+<ul>
+<li><strong>无平台公共库</strong>（不设 <code>Templates</code> Tab），弹框内全部是商家自有素材。<strong>方式1/方式2 共用此弹框</strong>，按<strong>素材类型</strong>分两个 Tab：</li>
+<li><strong>Tab① <code>Raw 原始素材</code>（类型1）</strong>：未加工原片——方式1 <code>Background</code> 上传视频 + 方式2 <code>Use your video</code> 上传视频（<strong>二者都算视频素材，同一条既可当前景也可当背景</strong>）+ 商家 <strong>TikTok 账号已发布短视频</strong>。</li>
+<li><strong>Tab② <code>Clips 视频片段</code>（类型2）</strong>：平台对"类型1 原片 + 直播录屏"做<strong>自动分镜+画面理解+打标</strong>后产出的 <strong>clip 维度</strong>素材。
+  <ul>
+  <li><strong>clip 详情</strong>：卡片可展开/悬浮看——<strong>时长、主打商品卖点、推荐用途、匹配度</strong>，商家不必猜这段在讲什么。</li>
+  <li><strong>商家备注反馈</strong>：商家可对某条 clip <strong>添加备注</strong>（如"这段口播很好/这段背景偏暗"）回流平台 = 除"改脚本→Save"外的<strong>第二条喂数据通道</strong>。</li>
+  </ul>
+</li>
+<li><strong>顶部语义搜索框</strong>：输入关键词（卖点/场景/品类）跨 Tab 检索，尤其 <code>Clips</code> 片段极多时商家不用逐页翻。</li>
+<li>（规划，V3 暂不开放）<code>Creator videos</code>：达人为商家商品带货产生的视频——属他人内容，<strong>需达人逐条授权</strong>方可入库，列为后续扩展（见平台端 §2 授权说明）。</li>
+<li>网格：可选卡片（选中 teal+✓）+ 缩略图右下 <strong>时长 badge</strong> + 标题（<code>Clips</code> 卡额外展示 推荐用途/匹配度）。</li>
+<li>右上 <code>+ Upload</code>（dropzone：虚线框 + ↑ + 规则提示，沿用 V2 方式2 规范 <code>MP4 ≤700MB / 5s~15min / ≥1080p / ≥24fps / H.264</code>）。</li>
+<li><strong>上传去重校验</strong>：上传时做重复度校验，历史已传过则<strong>不重复入库</strong>，直接标出该素材<strong>历史上传时间</strong>，无需重传。</li>
+<li>上传后显示<strong>进度条 + 自动校验 ✅❌</strong>，解析中显示 <code>Processing</code>（蓝）。</li>
+<li>底部 <code>Cancel</code> / <code>Use selected</code>（teal）。</li>
+<li>删除/替换/切换方式 1↔2 → <strong>二次确认弹窗</strong>（提示将清空已配置三层布局/素材/清洗稿）。</li>
+</ul>
+<h3 id="s-5-2">画面布局模型（V3 = 把 V2 三层从"固定参数"变成"商家可调"）</h3>
+<p>沿用 V2 9:16 拖拽预览 + X/Y/Scale slider，不新造控件。<strong>V3 不做 4 类 layer 用途下拉、不做 PIP 画中画</strong>，只把 V2 已有三层 + 数字人位置开放为商家可调：</p>
+<ul>
+<li><strong>全局背景层（在 Step1 设置，Step3 不设入口）</strong>：直播间维度背景图/视频统一在 <strong>Step1 · Set up LIVE 的 <code>Background</code> 环节</strong>设置（含背景视频）；贯穿整场、独立于单个 Scene；某 Scene 无背景素材时<strong>回落到 Step1 的直播间背景</strong>；视频则循环。</li>
+<li><strong>三层 + 数字人位置（V3 核心：固定 → 可调）</strong>：
+  <ul>
+  <li><strong>背景层</strong>：Scene 选用的背景素材（方式1 视频/图）；</li>
+  <li><strong>中景 ＝ 数字人</strong>：位置 X/Y/Scale 可拖拽调整；</li>
+  <li><strong>前景贴图层（Foreground）</strong>：X/Y/Scale 可拖拽（V2 既有 Overlay foreground 能力）。</li>
+  </ul>
+</li>
+<li>层级叠放顺序（预览与渲染一致）：<strong>前景贴图 / 数字人 / 背景素材 / 全局背景</strong>。</li>
+</ul>
+<blockquote>与 V2 关系：V2 已有"远/中/前景三层 + X/Y/Scale"，但 V2 是<strong>固定参数、商家不可调</strong>；V3 的<strong>唯一核心增量就是把这三层 + 数字人位置的调整能力开放给商家</strong>，不引入 PIP、不引入 layer 用途选择。<strong>选中某 Scene 调整布局时，右侧 9:16 <code>Preview</code> 实时渲染同步</strong>，所见即所得。</blockquote>
+<h3 id="s-5-3">商家输入新增</h3>
+<ul>
+<li><strong>素材上传</strong>（方式1 <code>Background</code> + 方式2 <code>Use your video</code>，二者都算视频素材，体验收敛进素材库弹框）。</li>
+<li><strong>画面布局</strong>：背景层素材 + 数字人位置 + 前景贴图层 的 X/Y/Scale 调整（全局背景在 Step1 设置）。</li>
+<li><strong>给平台的"悄悄话"</strong>（左栏 LIVE Flow 顶部新增一处选填，多行文本）——文案改为「💬 给平台剧本安排的悄悄话」：商家对"整场怎么播"的偏好喂给平台，<strong>表达轻松有趣</strong>，并<strong>沉淀进商家记忆库</strong>后续复用。</li>
+</ul>
+<h3 id="s-5-4">图片识别点（平台侧，商家无感）</h3>
+<ul>
+<li>商家上传素材 / 直播录屏 / TikTok 已发布短视频 → 平台侧 <code>gemini-3-pro-preview-new</code> 自动分镜 + 画面理解 + 打标 → 回填到 <code>My assets</code> 网格。商家端只看进度与结果卡片。</li>
+<li><strong>两类素材处理时长差异（给商家明确预期 + 引导多传）</strong>：Tab① 原始素材上传通常 <strong>1–2 分钟</strong>入库可用；Tab② 解析到 clip 维度需平台离线处理约 <strong>1–2 天</strong>。故文案<strong>引导商家尽早多传视频</strong>，让平台提前完成 clip 解析、开播前就绪。</li>
+</ul>
+<p><strong>埋点回流</strong>：<code>s3_asset_dialog_open</code>、<code>s3_asset_search</code>（关键词、Tab=raw/clips）、<code>s3_asset_upload</code>（含是否命中去重）、<code>s3_asset_select</code>（类型 raw/clip）、<code>s3_clip_note</code>（clip_id、备注）、<code>s3_tiktok_import</code>、<code>s3_method_switch</code>、<code>s3_scene_reorder</code>、<code>s3_layout_adjust</code>（层=background/avatar/foreground、X/Y/Scale）、<code>s3_overlay_upload</code>、<code>s3_whisper_edit</code>（悄悄话）。（全局背景埋点 <code>s1_global_bg_set</code> 在 Step1）</p>
+<h2 id="s-6"><span class="sec">§6</span> 模式一 · Step 4 · Generate scripts（<strong>纯 List 视图</strong>）<span class="ok">【P0】</span></h2>
+<blockquote><strong>本节属模式一（经典分步）</strong>。模式一 Step4 <strong>看的就是 V2 原貌的 List 脚本视图，不提供 List⇄Timeline 切换</strong>（Log 0023）。多轨 Storyboard / timeline 是<strong>模式二</strong>的形态，见 §6.5。</blockquote>
+<p><strong>V2 现状</strong>：三栏；中栏 <code>Scripts (N)</code> + <code>Show scripts in Chinese</code>；每 Scene 脚本卡（缩略图+标题+⏱ Estimated Duration + Hook/Body/CTA 三段 pill）；进入即<strong>默认预填到"可发布"水位</strong>；编辑能力；改文案实时合规高亮违禁词；Save/Previous/Next。</p>
+<p><strong>V3 增量（轻）</strong>：脚本生成能力<strong>沿用 V2 既有脚本生成链路</strong>（理解 prompt 已是 P0，主-子 Agent 智能编排属模式二/P2，不在此）；List 仅吸收两点轻增强 + Step1/Step2 的新输入（Language、卖点/禁讲）对生成质量的影响。</p>
+<h3 id="s-6-1">UI 展示逻辑（中栏 · Scripts，沿用 V2 三栏）</h3>
+<ul>
+<li><strong>左栏 LIVE Flow</strong>：<code>Opening → 品1(Scene×N) → … → Closing</code> 只读导航（V2 既有），点击定位中栏对应脚本卡。</li>
+<li><strong>中栏 Scripts (N)</strong>：顶部 <code>Scripts (N)</code> 标题 + <code>Show scripts in Chinese</code> 开关（V2 既有）。<strong>无视图切换按钮</strong>（不出现 Timeline）。<strong>Scene 脚本卡（纵向 List，V2 卡片样式）</strong>：缩略图 + 标题（品名·卖点）+ ⏱ <code>Estimated Duration</code> + 🆕 <strong>预估脚本字数</strong>（Scene 时长由 <strong>TTS 时长驱动</strong>，详见 §6.6）+ <code>Hook / Body / CTA</code> 三段 pill（灰）。点段内文本 ✏️ 行内编辑；命中违禁词实时红色 highlight。</li>
+<li><strong>右栏 9:16 Preview</strong>：选中 Scene 实时预览画面+字幕（V2 既有）。</li>
+<li><strong>底部操作条</strong>：<code>Previous</code> / <code>Save</code>（次）/ <code>Next</code>（teal 主）。</li>
+</ul>
+<h3 id="s-6-2">唯一"喂数据"动作 = 改脚本 → Save</h3>
+<ul>
+<li>商家编辑文案 → 点 <code>Save</code> = 把"商家保存稿"回流平台。</li>
+<li><strong>商家端到此为止</strong>：商家<strong>看不到</strong>"平台初稿 vs 商家保存稿"的 diff、不知道会触发 prompt 迭代——diff 分析、归类、改 prompt 全在平台端（见平台端 §4 反馈与归因台）。</li>
+</ul>
+<p><strong>埋点回流</strong>：<code>s4_lang_toggle</code>、<code>s4_script_edit</code>（scene_id、segment、前后文本指纹/字数差）—— <strong>diff 原料</strong>、<code>s4_compliance_hit</code>、<code>s4_save</code>（live_id、涉及 scene、是否相对初稿有改动）—— <strong>触发平台 diff 流水线的信号</strong>。</p>
+
+<h2 id="s-6-5"><span class="sec">§6.5</span> 模式二 · <strong>LIVE Storyboard</strong>（Step3+Step4 合并为一步 · timeline 视图）<span class="warn">【P2】</span></h2>
+<blockquote><strong>本节属模式二（智能剧本）</strong>，把 §5 Set up scenes 与 §6 Generate scripts <strong>合并为一个时间轴页</strong>，由<strong>平台端 Script Studio 主-子 Agent 编排</strong>驱动（详见平台端 §3）。<strong>架构本期先设计，实现后置 P2</strong>；商家选模式二后进入此页（P2 上线前卡片置灰 <code>Coming soon</code>）。Step5 维持不变。</blockquote>
+<p><strong>入口与定位</strong>：模式二跳过"先 Step3 再 Step4"的分步，直接进 <strong>LIVE Storyboard</strong>——一屏把口播/画面/互动/运营/声音/场外音多轨道原子<strong>对齐到同一条时间轴</strong>。外层仍是 V2 三栏（左 LIVE Flow / 中 Storyboard / 右 9:16），色彩复用 V2 四态/中性灰，不新造色。</p>
+<blockquote>⭐ <strong>核心模型：同一时间轴、多轨道叠加（NLE 式）</strong>。这是剧本最核心的能力——<strong>任一时刻可多轨同时生效</strong>（如某 30s 内：轨1口播 + 轨2画面 + 轨5场外音催单 + 轨6铃声同时响），不是"一轨接一轨顺序播"。详见下「多轨并发模型」与平台端 §3 直播大脑 JSON schema 契约。</blockquote>
+<h3 id="s-6-5-1">UI 展示逻辑（中栏 · LIVE Storyboard，横向时间轴，多轨泳道）</h3>
+<ul>
+<li><strong>泳道布局</strong>：横向一条绝对时间轴（秒），每条轨道一条独立 lane；先在轴上给<strong>每个品分配时间段</strong>，品内再排 Scene；各轨原子是 lane 上色块，<strong>带显式起止 [start,end]</strong>，可拖拽改时点/时长、可在同一时间窗重叠。</li>
+<li>轨道① <strong>Speech 口播</strong>：Hook / Body / CTA 段（pill 沿用 V2 灰），可编辑 ✏️；命中违禁词 highlight。<strong>Scene 展示时长 = 该段口播 TTS 时长驱动</strong>（§6.6）。</li>
+<li>轨道② <strong>Visual 画面</strong>：方式1 三层布局缩略 / 方式2 <strong>scene 素材 clip</strong>（商家在 <code>Use your video</code> 上传的预录视频片段，画面走该 scene、TTS 解说不断），与素材库联动只读展示。<strong>"画中画"效果用三层实现</strong>——数字人作中景缩小+定位、素材铺背景或全屏覆盖，<strong>不引入独立 PIP 控件</strong>；画面状态对应 <code>visual.layer</code>：<code>none</code>（数字人+背景同框）/ <code>foreground</code>（素材全屏、数字人隐）/ <code>background</code>（素材铺背景）。</li>
+<li>轨道③ <strong>Interaction 互动（独立模块）</strong>：互动<strong>不绑定到每个 Scene</strong>，抽成<strong>独立互动配置模块</strong>，按<strong>整场 / 商品维度</strong>统一配置；时间轴只读展示落点，统一 on/off。</li>
+<li>轨道④ <strong>Operation 运营 ＝ 品级 overlay 层</strong>：每个品一个 overlay 层，层内可放<strong>多张图片元素</strong>（商品实拍图贴前景"桌面"、价格牌/秒杀价/倒计时贴片贴画面左侧）。各元素 X/Y/Scale 可拖拽，<strong>元素种类不封顶，由商家自行判断</strong>。与时间轴联动，只读+开关。</li>
+<li>轨道⑤ <strong>Voice 声音</strong>：默认带 Step1 所选数字人音色；理想态支持<strong>按商品差异化声纹/语速</strong>（本期占位）。</li>
+<li>轨道⑥ <strong>Off-screen 场外音（强化真人在场，对冲红线 #15）</strong>：任意时点 <code>+</code> 加<strong>场外音原子</strong>，二选一：① <strong>音效库 SFX</strong>（铃铛🔔/掌声/上新提示音/倒计时滴答…）；② <strong>TTS 语音播报</strong>（输入文案→选播报音色，<strong>可与主播不同＝第二人声</strong>→平台生成）。每原子可设<strong>触发时点</strong>（对齐时间轴/绑定某 Scene/运营节点）、<strong>音量</strong>、<strong>是否压低 BGM（ducking）</strong>。</li>
+<li>Scene 卡头部保留 ⏱ <code>Estimated Duration</code> + 预估脚本字数。</li>
+</ul>
+<h3 id="s-6-5-1b">⭐ 多轨并发模型（同一时间轴叠加 · 渲染契约，与平台端 §3 schema 一致）</h3>
+<ul>
+<li><strong>层级</strong>：主时间轴(整场) → 品时间段 → 品内 N 个 Scene → 每条轨道独立泳道；原子 <code>{track, start_sec, end_sec, payload}</code>，靠<strong>绝对时间对齐</strong>、可重叠。</li>
+<li><strong>视觉合成（z-order，上→下）</strong>：① 运营 overlay 元素 ② 前景贴图 ③ 数字人（中景，缩放+定位 ＝ 画中画来源）④ 背景素材（scene clip）⑤ 全局背景。</li>
+<li><strong>音频混音（优先级 + ducking，高→低）</strong>：① 口播 &gt; ② 场外音 TTS（第二人声）&gt; ③ SFX/铃声 &gt; ④ BGM；高优先级活跃时自动压低低优先级。</li>
+<li><strong>示例（并发）</strong>：<code>t=0~8s</code> 轨1口播+轨2画面(数字人画中画)+轨3互动 → <code>t=8~12s</code> 轨1口播+轨5场外音催单+轨6铃声(BGM duck) → <code>t=12~18s</code> 画面切轨2全屏素材(引导下单, layer=foreground) → <code>t=18s+</code> 轨1口播+轨2背景视频(layer=background)。</li>
+<li><strong>商家编辑形态</strong>：拖品时间段 → 拖品内各轨原子 start/end → 右侧 9:16 实时按合成/混音契约预览。</li>
+</ul>
+<h3 id="s-6-5-2">唯一"喂数据"动作 = 改 → Save（同模式一）</h3>
+<ul>
+<li>商家在口播轨编辑、开关互动/运营/场外音原子 → <code>Save</code> 回流平台；diff/归因全在平台端，商家无感。</li>
+</ul>
+<p><strong>埋点回流</strong>：<code>s4_script_edit</code>、<code>s4_interaction_toggle</code>/<code>s4_operation_toggle</code>（atom_id、on/off）、<code>s4_overlay_edit</code>（品 overlay 元素增删/拖拽）、<code>s4_offscreen_add</code>（type=sfx/tts、触发时点）、<code>s4_compliance_hit</code>、<code>s4_save</code>。<strong>全部带 <code>mode=smart</code> 维度</strong>，供平台端按模式归因。</p>
+
+<h2 id="s-6-6"><span class="sec">§6.6</span> Scene 时长由 TTS 驱动（两模式通用）</h2>
+<ul>
+<li><strong>Scene 展示时长 = 该 Scene 口播脚本对应的 TTS 语音时长驱动</strong>（与百度慧播星一致）。商家改脚本字数 → TTS 时长变 → 时间轴 Scene 段长<strong>自动伸缩</strong>，无需手填时长。</li>
+<li><strong>方式2 <code>Use your video</code> ＝ scene 素材</strong>：商家上传的预录视频片段即一个 scene 的画面，渲染时<strong>画面走该 scene、TTS 解说不断</strong>；与 V2「Use your video」链路本就对齐，无需新概念（商家端 / 平台运营<strong>统一口径叫 scene</strong>，不再用"切镜"一词）。</li>
+<li><strong>不做"暖场/水军"</strong>：不引入虚假暖场互动话术（规避无效互动红线 #12~14）。</li>
+</ul>
+
+<h2 id="s-7"><span class="sec">§7</span> Step 5 · Render LIVE and launch（Results）· 商家端不变 <span class="ok">【P0 · 两模式通用】</span></h2>
+<p><strong>V2 现状 = V3 商家端现状</strong>（Log 0007 敲定"商家端先不变"）：</p>
+<ul>
+<li><code>AI LIVE details</code>：左 9:16 成片预览；右 <code>Ready</code>（绿）+ <code>Your AI LIVE is Ready!</code> + 信息卡（LIVE name / Est. duration）+ <code>Go LIVE now</code>（teal）+ 循环播放底注。</li>
+</ul>
+<p><strong>V3 平台侧</strong>（商家无感）：分钟级归因接入（先内部用）、运行时插播留楔子——<strong>全部在平台端</strong>，不在本页呈现。</p>
+<p><strong>埋点回流</strong>：<code>s5_golive_click</code>、<code>s5_end_live</code>。</p>
+
+<h2 id="s-8"><span class="sec">§8</span> 商家端埋点总表（回流平台的"喂数据"接口）</h2>
+<table>
+<tr><th>步骤</th><th>关键埋点</th><th>平台消费方</th></tr>
+<tr><td>List</td><td>create/edit/golive/viewdata click</td><td>使用漏斗</td></tr>
+<tr><td>S1</td><td>avatar_filter / listen / select、bg_select/upload</td><td>人格卡推荐效果、选型偏好</td></tr>
+<tr><td>S2</td><td>product_add/remove、sellingpoints_edit、<strong>donotsay_edit</strong></td><td>prompt 卖点/禁讲约束</td></tr>
+<tr><td>S3</td><td>asset_dialog_open、asset_upload/select、method_switch、scene_reorder、overlay_upload、flow_notes</td><td>素材→Clip Bank、布局偏好</td></tr>
+<tr><td>S4</td><td><strong>script_edit（前后差）</strong>、interaction/operation_toggle、compliance_hit、<strong>save</strong></td><td><strong>S2 diff 分析 + 自进化触发</strong></td></tr>
+<tr><td>S5</td><td>golive_click、end_live</td><td>分钟级归因起止锚点</td></tr>
+</table>
+<blockquote>商家端只"发埋点"，不"看分析"。所有分析结果回到平台端工作台。</blockquote>
+
+<h2 id="s-9"><span class="sec">§9</span> 商家端"无感清单"（这些<strong>绝不</strong>出现在商家端）</h2>
+<ul>
+<li><span class="no">❌</span> provenance 溯源链（脚本段→prompt 版本/卖点/素材）</li>
+<li><span class="no">❌</span> "平台初稿 vs 商家保存稿"diff 及其 LLM 分类（语气/卖点/合规规避）</li>
+<li><span class="no">❌</span> 任何 prompt（理解 prompt / 生成 prompt）与其版本</li>
+<li><span class="no">❌</span> 分钟级双视角归因、诊断报告、测评 2.0 分数</li>
+<li><span class="no">❌</span> 模型名（gemini-3-pro-preview-new 等）、ModelHub、内网链路</li>
+</ul>
+<blockquote>以上全部封装在 🏭 平台端《V3平台端内部工作台页面级方案》。</blockquote>
+</section>
+    <section id="platform-doc" class="doc">
+<h1>V3 平台端 · 内部工作台页面级方案</h1>
+<div class="card-meta">
+<b>一句话</b>：服务运营/产品/算法的<b>内部工作台产品</b>，把"素材加工→剧本生产→反馈归因→算法工作流"四条链路封装成闭环；商家全程无感，仅通过埋点喂数据。<br>
+<b>品牌</b>：沿用 V2 主色 Teal + 状态色保持品牌一致；但布局以<b>信息密度/工作流</b>为先，不套商家向导壳（这是内部工具，不是商家页面）。<br>
+<b>图片识别</b>：素材分镜/画面理解/打标统一 <code>gemini-3-pro-preview-new</code>（ModelHub 内网）。
+</div>
+<blockquote>双端原则：🏭 平台端＝生产 + 智能层。素材分镜/解析→Clip Bank、剧本（直播大脑 JSON）生产、provenance 溯源、合规左移、反馈与归因（S2 diff / 分钟级双视角 / 诊断 / 人工确认改 prompt / 测评 2.0 回归）、算法工作流——<strong>全部封装于此</strong>，配内部工作台服务运营/产品/算法。</blockquote>
+
+<h2 id="p-0"><span class="sec">§0</span> 定位与设计原则</h2>
+<table>
+<tr><th>项</th><th>说明</th></tr>
+<tr><td><strong>用户</strong></td><td>内部：运营（看效果/管素材/管 prompt 上线）、产品（看链路/诊断/决策）、算法（调 prompt/跑测评/看归因）。</td></tr>
+<tr><td><strong>不是商家页面</strong></td><td>不套 <code>Create AI LIVE</code> 向导壳；用经典内部后台：左导航 + 顶部面包屑 + 中部工作区 + 右侧详情抽屉。</td></tr>
+<tr><td><strong>品牌一致</strong></td><td>主色仍用 <strong>Teal</strong>，状态色沿用 V2（Ready 绿 / Generating 蓝 / Live 红粉 / Ended 灰 / Draft 琥珀），让内外产品同源；但允许更高信息密度（表格/看板/diff 双栏）。</td></tr>
+<tr><td><strong>图片识别</strong></td><td>画面/帧/图片理解一律 <code>gemini-3-pro-preview-new</code>（ModelHub 内网）；纯文本 LLM（清洗/扩写/翻译/diff 分类）与 ASR 不在替换范围。</td></tr>
+<tr><td><strong>复用优先</strong></td><td>分钟级数据用 Mimir；高光识别复用 <code>直播高光片段剪辑</code> 算法；风险归因复用 Creator Risk Investigation API；渲染复用百度慧播星底板（见 §8）。</td></tr>
+</table>
+
+<h2 id="p-1"><span class="sec">§1</span> 信息架构（左导航）</h2>
+<pre><code>AI LIVE Brain · Console（内部）
+├─ 📊 Overview 总览看板        ← 链路健康/转化/迭代趋势
+├─ 🎬 Material Studio 素材加工台 ← 录屏/素材 → 分镜 → 解析 → Clip Bank
+├─ 📝 Script Studio 剧本生产台   ← 直播大脑 JSON 生产 + 合规左移 + provenance
+├─ 🔁 Attribution Studio 反馈与归因台 ← S1 测评 / S2 diff / S3 分钟级双视角 / 诊断
+├─ ⚙️ Workflow Studio 算法诊断/工作流平台 ← prompt 版本/灰度/回归测评/上线
+└─ 🗄 Clip Bank / Asset Registry  ← 结构化素材资产库（被各台引用）</code></pre>
+<blockquote>四台对应 Log 0006 的四链路；总览看板是入口，Clip Bank 是公共资产层。</blockquote>
+
+<h2 id="p-1-5"><span class="sec">§1.5</span> 双模式与平台端的关系 · <code>mode</code> 字段轻感知（Log 0024）</h2>
+<p>商家端 Step2 后分<strong>模式一（经典分步 · <span class="ok">P0</span>）/ 模式二（智能剧本 · <span class="warn">P2</span>）</strong>，但二者：<strong>同产一份「直播大脑 JSON」、平台端生产链路不分叉、JSON schema 完全一致</strong>——平台端<strong>不需要为两种模式写两套生产逻辑</strong>。不过需对模式做<strong>「轻感知」</strong>：在场次级埋一个 <code>mode ∈ {classic, smart}</code> 字段，贯穿以下几处，用于<strong>分析 / 溯源 / 归因 / A-B</strong>：</p>
+<table>
+<tr><th>落点</th><th>用途</th></tr>
+<tr><td><code>shared_context.mode</code></td><td>随直播任务下发，生产时记录该场来自哪种编辑形态</td></tr>
+<tr><td><code>provenance.mode</code></td><td>每个原子溯源带 mode，归因时可按模式切片（如"smart 模式的脚本改动率/合规命中率"）</td></tr>
+<tr><td>Attribution 看板筛选维度</td><td>场次列表、归因曲线可按 <code>mode</code> 过滤，对比两模式的 GMV/转化/diff 改动量</td></tr>
+<tr><td>Overview 总览</td><td>两模式渗透率、留存、转化对比，支撑"模式二是否值得加码"的决策与 A-B</td></tr>
+</table>
+<blockquote>一句话：<strong>生产逻辑不分叉（省成本），但数据维度要带 <code>mode</code>（能归因）</strong>。模式一脚本走 V2 既有能力时，<code>mode=classic</code> 且 provenance 标注脚本来源为 V2 链路。</blockquote>
+
+<h2 id="p-2"><span class="sec">§2</span> 🎬 Material Studio · 素材加工台（链路一：素材→Clip Bank）<span class="ok">【P0】</span></h2>
+<blockquote><strong>优先级【P0】</strong>：与商家端模式一同为第一优先。先把素材库抽象出来、把"素材→视频 clip"的加工链路做完整，是模式一闭环的基础。<strong>理解 prompt（素材打标）随本台一起 P0</strong>（详见 §3 双 prompt 分层）。</blockquote>
+<p><strong>职责</strong>：把商家上传素材 / 直播录屏 / 商家 TikTok 账号已发布短视频，自动分镜 + 画面理解 + 打标，沉淀为结构化 <strong>Clip Bank</strong>。</p>
+<h3 id="p-2-0">素材来源与授权 + 两类素材映射（V3 对齐）</h3>
+<p><strong>平台侧输入 = 类型1 原始素材</strong>（未加工）；平台经「分镜→画面理解→打标」<strong>产出 = 类型2 视频 clip</strong>，<strong>经运营采纳后</strong>回填商家端 <code>My assets</code>。入库 clip 标 <code>source</code> 以便追溯（<strong>不写笼统 <code>upload</code>，按商家上传的两种方式精确区分</strong>）：</p>
+<ol>
+<li><strong>method1_background</strong>：商家选数字人时作为 <code>Background</code> 背景视频上传（方式1，对应 <strong>layer=background</strong>）；</li>
+<li><strong>method2_use_your_video</strong>：商家通过 <code>Use your video</code> 上传的前景素材（方式2，对应 <strong>layer=foreground</strong>）；</li>
+<li><strong>live_replay</strong>：直播录屏解析分镜（仅产 clip，属类型2）；</li>
+<li><strong>tiktok_post</strong>：<strong>商家 TikTok 账号已发布的短视频</strong>（自有账号，授权拉取后自动分镜）。</li>
+</ol>
+<blockquote><strong>两类映射（与商家端 §5 两 Tab 一致）</strong>：类型1（原始）= <code>method1_background</code> + <code>method2_use_your_video</code> + <code>tiktok_post</code> 原片；类型2（clip）= <code>live_replay</code> clip + 对类型1 解析出的 clip。同一条原片可同时用作前景或背景。</blockquote>
+<blockquote><p>合规：三类均为商家<strong>自有内容</strong>，不命中"搬运/盗播"红线（治理库 §9 #5~8/#11）。</p>
+<p><strong>规划项（V3 暂不开放）</strong> <code>creator_video</code>：达人为商家商品带货产生的视频——属<strong>他人内容</strong>，须<strong>达人逐条授权</strong>并带授权凭证、标 <code>source=creator_video</code> 后方可入库；未授权一律不可用（规避搬运/盗播）。</p></blockquote>
+<h3 id="p-2-1">页面布局</h3>
+<ul>
+<li>左：素材源列表，筛选维度：来源 <code>source</code>、<code>live_id</code>（= <strong>直播间 roomid</strong>）、时间、状态 pill；<strong>商家维度</strong>：<code>Shop ID</code>、<code>Shop Name</code>、<strong>开播账号</strong>、<code>Author_id</code>（TT handle id）、<code>Fans</code>（粉丝数）、<strong>近 30 天开播次数</strong>。</li>
+<li>中：<strong>素材列表 + 分镜时间轴（多素材展示规则）</strong>——上半区是该商家<strong>原始素材清单</strong>（如 10 个上传 + 1 个录屏），按 <code>source</code> 分组每条一行；选中某条 → 下半区展开它的<strong>分镜时间轴</strong>（原视频帧带 + clip 段）。即"左选商家/任务 → 中上选素材 → 中下看分镜"，避免多素材混在一条轴上看不清。</li>
+<li>右：clip 详情抽屉——见下「Clip 字段」。</li>
+</ul>
+<h3 id="p-2-2">Clip 字段（对齐 Demo Clip Bank）</h3>
+<table>
+<tr><th>字段</th><th>说明</th></tr>
+<tr><td><code>clip_type</code></td><td>类型态：<span class="ok">strong</span>（强可用·绿）/ <span class="warn">bg</span>（背景素材·金）/ <span style="color:var(--grey);font-weight:700">risk</span>（风险·不可用·灰）</td></tr>
+<tr><td><code>has_speech</code></td><td><strong>是否有人声</strong>（解析分流开关）：无人声/仅 BGM → 走纯画面理解出 tags，不强行 ASR；有人声 → 做 ASR</td></tr>
+<tr><td><code>visual</code></td><td>画面视觉内容理解（<code>gemini-3-pro-preview-new</code>）。<strong>无人声素材主要靠它输出 tags/卖点</strong></td></tr>
+<tr><td><code>asr</code></td><td>原始 ASR 文案（句级时间戳）。<strong>仅当 has_speech=true 时产出</strong>；无人声素材此字段为空</td></tr>
+<tr><td><code>asr_lang</code></td><td><strong>口播语言</strong>（仅 has_speech=true）：<code>en</code>/<code>es</code>，由 ASR 识别。<strong>与商家端 Step1 Market/Language（<code>shared_context.language</code>）做一致性校验</strong>——不一致标 <code>lang_mismatch</code> 提示，供运营采纳参考；与素材推荐/排序联动（优先推同语言 clip）</td></tr>
+<tr><td><code>match_score</code></td><td><strong>商品匹配度</strong>（0–100，meter 进度条）。<strong>比对集 = 该商家近 30 天有动销的商品全集</strong>（含商家端历史已选商品）；逐 clip 对该集算匹配度</td></tr>
+<tr><td><code>recommend_use</code></td><td><strong>推荐用途</strong>（建议 layer：<code>background</code>/<code>foreground</code>/<code>none</code>；<code>foreground</code>↔方式2、<code>background</code>↔方式1。<strong>不含 pip，V3 已砍 PIP</strong>）</td></tr>
+<tr><td><code>visual.layer</code></td><td><strong>底层渲染字段（保留）</strong>：<code>{background, foreground, none}</code> 供渲染引擎决定叠放（商家端不暴露，仅平台/渲染用；V3 已移除 pip）</td></tr>
+<tr><td><code>format</code></td><td><strong>标准化产出格式</strong>：MP4 / 5s–15min / ≤700MB / 1080×1920 / ≥24fps / H.264——产 clip 时即转码达标，商家端可<strong>直接复用</strong></td></tr>
+<tr><td><code>tags</code></td><td>品类 / 卖点 / 场景标签</td></tr>
+<tr><td><code>duration</code></td><td>时长 badge</td></tr>
+<tr><td>操作</td><td>采纳/丢弃、改标签、合并/拆分、入 Clip Bank 开关。<strong>采纳门控：仅运营点【采纳】后，clip 才在商家端 <code>My assets·Clips</code> 展示</strong></td></tr>
+</table>
+<h3 id="p-2-3">数据流</h3>
+<pre><code>原始素材 → 检测 has_speech（是否有人声）？
+   ├─ 有人声        → ASR(句级时间戳) ─┐
+   └─ 无人声/仅 BGM → 跳过 ASR ────────┤
+                                       │
+画面帧抽取（★必经路线，所有素材都走）→ gemini-3-pro-preview-new（自动分镜+画面理解+打标）
+                                       │
+                                       ▼
+   候选 clip（缩略图/标签/质量分/匹配度/推荐用途/risk态/标准化format/has_speech）
+                                       │ 运营【采纳】门控
+                                       ▼
+              Clip Bank 入库 → 采纳后回填商家端 My assets·Clips</code></pre>
+<blockquote><strong>画面帧抽取必经</strong>：很多商家素材无人声或只有 BGM，无法靠 ASR 理解，必须抽关键帧做画面理解出 tags；故画面帧抽取是主干、ASR 是条件分支。<br>
+<strong>录屏解析范围</strong>：直播录屏常达十几小时 / 十几 G，全量解析成本过高——<strong>默认只解析该商家最近 1 次直播录屏</strong>（更早录屏按需手动触发）。</blockquote>
+<h3 id="p-2-4">图片识别点 / 关键交互</h3>
+<ul>
+<li>自动分镜、画面内容理解、卖点/场景/品类打标、封面优选 → 全部 <code>gemini-3-pro-preview-new</code>。</li>
+<li><strong>画面帧抽取是必经路线</strong>：不论有无人声都抽关键帧做画面理解（无人声/仅 BGM 素材尤其依赖它出 tags）。</li>
+<li><strong>复用 + 白盒展示原理</strong>：分镜切分复用 <code>直播高光片段剪辑</code> 的自动场景切分（Log 0006），但需<strong>白盒说明算法原理</strong>、不黑盒"一键复用"：① <strong>镜头边界检测</strong>（相邻帧直方图/特征差异超阈值即判切点）；② <strong>语义聚合</strong>（相邻同主题镜头合并成 clip）；③ <strong>质量/卖点打分</strong>（清晰度/构图 + 多模态卖点识别）；④ <strong>风险过滤</strong>（命中治理红线标 risk）。</li>
+<li>clip 卡：采纳/丢弃、改标签、合并/拆分段；批量入库。失败重试 + 错误明细（编码/时长/分辨率不达标）。</li>
+</ul>
+
+<h2 id="p-3"><span class="sec">§3</span> 📝 Script Studio · 剧本生产台（链路二：JSON 生产 + provenance + 合规左移）<span class="warn">【P2】</span></h2>
+<blockquote><strong>优先级【P2】</strong>：主-子 Agent 智能编排剧本生产改动量大，作为后置 P2；<strong>架构本期先设计好</strong>（双 prompt / 共享上下文 / provenance / 画面层级模型），实现随商家端模式二一起落地。<br>
+<span class="warn">⚠️ 与模式一的关系</span>：模式一（P0）Step4 脚本用的是 <strong>V2 既有脚本生成能力</strong>，<strong>不依赖本台的主-子 Agent 编排</strong>；本台编排是模式二（P2）的生产后台。<br>
+<strong>★ 双 prompt 优先级分层（Log 0025）</strong>：<strong>① 理解 prompt（素材打标）随 Material Studio 进 <span class="ok">P0</span></strong>（模式一也要素材加工）；<strong>② 生成 prompt（剧本编排）随本 Script Studio 进 <span class="warn">P2</span></strong>。</blockquote>
+<p><strong>职责</strong>：以<strong>主-子 Agent 编排模型</strong>产出"直播大脑 JSON"——L0 整场主 Agent 编排开场/品序/结尾/全局，6 条职能 subagent（选品/脚本/画面/互动/运营/声音/场外音）横切整场、<strong>共享上下文</strong>、并行产出后对齐同一时间轴；并写 provenance、做合规左移。这是商家端 Step4 LIVE Storyboard 的<strong>生产后台</strong>（编排模型对商家无感）。</p>
+<h3 id="p-3-1">页面布局（按 商家ID + 直播任务ID 组织）</h3>
+<ul>
+<li><strong>顶层导航 = 商家 <code>Shop ID</code> → 直播任务 <code>task_id</code></strong>（对应商家端创建的每个直播任务）；选定某任务后才进入下方左/中/右三栏。</li>
+<li>左：直播大脑 JSON 结构树 = <strong>L0 主 Agent</strong>（Opening / Product 序 / Closing / 全局风格）→ <strong>6 职能 subagent</strong>（选品/脚本/画面/互动/运营/声音/场外音）；选品 subagent 下展开 <code>品 → 卖点 Scene → hook/body/cta</code> 时间轴。</li>
+<li>中：JSON 编排视图（时间轴 + <strong>多轨道原子卡</strong>）+ <strong>双 prompt 面板</strong>（① 理解 prompt ② 生成 prompt，只读展示当前版本，编辑入口在 Workflow Studio）。</li>
+<li>右：<strong>provenance 抽屉</strong>——每个原子展开可见：所属 <code>agent_role</code>/<code>track</code>、来源 prompt 版本、生产阶段、引用的 Clip Bank 资产、命中的卖点/禁讲约束、合规检查结果。</li>
+</ul>
+<h3 id="p-3-1a">★ 双 prompt 定义 + 剧本生产触发时机</h3>
+<ul>
+<li><strong>① 理解 prompt（Understanding）</strong>：作用对象 <code>gemini-3-pro-preview-new</code>（多模态，看视频/图片），在 <strong>Material Studio（链路一）</strong> 对素材做自动分镜+画面理解+卖点/场景/品类打标+封面优选，结构化成 Clip Bank（<code>visual</code> 即其产物）。决定<strong>素材理解得准不准</strong>。</li>
+<li><strong>② 生成 prompt（Generation）</strong>：作用对象<strong>纯文本 LLM</strong>（不在图片识别替换范围），在 <strong>Script Studio（链路二）</strong> 把 <code>Clip Bank + 商家输入(卖点/禁讲/悄悄话) + 商家选中的商品列表 + 平台红线</code> 组装产出直播大脑 JSON，并触发合规左移、写 provenance。决定<strong>剧本好不好、合不合规</strong>。</li>
+<li><strong>★ 剧本生产触发时机（重大修正·很关键）</strong>：生成 prompt 的核心输入是<strong>商家选中的商品列表</strong>，因此<strong>剧本生产在商家端 Step2 选品完成、点"下一步"离开 Step2 时就立刻触发</strong>（后台异步）——<strong>不是</strong>等 Step3 结束进 Step4。Step3 的素材/scenes/悄悄话作为<strong>后续增量重生成</strong>的输入。这样商家进入 Step3/Step4 时初稿已就绪，体验更顺。</li>
+</ul>
+<h3 id="p-3-1b">★ 主-子 Agent 编排模型 + 共享上下文 schema（Log 0014–0016 落地）</h3>
+<pre><code>L0 整场主 Agent（= 一场直播 = 商家端一个直播任务）
+  产出：开场 / 品序编排 / 结尾 / 全局风格调度
+  ├─ 选品 subagent     一品 N 卖点(Scene) → 品级小剧本（带时间轴 = 直播大脑 JSON）
+  ├─ 脚本 subagent     口播 hook/body/cta
+  ├─ 画面 subagent     visual.layer{bg/fg/none}（已砍 pip） + clip 引用
+  ├─ 互动 subagent     整场 / 商品维度（独立模块）
+  ├─ 运营 subagent     商品维度（价格牌 / 秒杀 / 楔子，联动 overlay）
+  ├─ 声音 subagent（V3 规划占位）   音色 / 语气 / 语速（TTS）
+  └─ 场外音 subagent（V3 规划占位） 旁白 / 场控 / 助播 / BGM（强化真人在场·对冲红线 #15）
+  调度：各 subagent 并行产出 → 主 Agent 对齐同一时间轴（并行 ≠ 无依赖：读彼此「已产出原子」，不读中间过程）</code></pre>
+<p><strong>为什么并行</strong>：互动/脚本/画面/声音/场外音各由<strong>独立 PM</strong> 设计、各有<strong>独立测评 rubric</strong>，天然解耦；主 Agent 是编排器/协调者，不做串行流水线。</p>
+<p><strong>共享上下文 schema</strong>（随直播大脑 JSON schema 一起落，不单独成稿——Log 0017）：</p>
+<table>
+<tr><th>层</th><th>谁可读</th><th>内容</th></tr>
+<tr><td><code>shared_context</code></td><td>全 subagent 可读（字节稳定前缀）</td><td><strong>market（US）/ language（en/es）/ mode（classic/smart）</strong>、商品列表（近 30 天动销可选集）、人设/avatar、商家记忆库、整场节奏/品序、平台红线、商家"悄悄话"</td></tr>
+<tr><td><code>track_private</code></td><td>各 subagent 私有</td><td>该轨 directive + 专属参数（声音 TTS / 画面渲染…）+ <strong>读权限白名单</strong>（如声音轨不读 match_score / 视觉标签）</td></tr>
+<tr><td><code>track_outputs</code></td><td>轨间共享产物层</td><td>各轨已产出、对齐时间轴的结构化原子；按需引用解决数据依赖，不读中间过程</td></tr>
+</table>
+<blockquote>借鉴 Claude Code 多 Agent 机制：<code>shared_context</code> 字节稳定前缀 ≈ fork 复用 prompt cache；<code>track_private</code> 读权限白名单 ≈ 工具白名单做能力隔离；"只交换产物、不偷看中间过程" ≈ 防上下文污染。</blockquote>
+<h3 id="p-3-2">provenance 落点（Log 0005 敲定 + Log 0015 扩展）</h3>
+<ul>
+<li><strong>独立表 + JSON 引 id</strong>：脚本 JSON 内每个原子带 <code>provenance_id</code>，溯源明细存独立表（便于跨场聚合归因）。</li>
+<li>字段：<code>agent_role</code>（orchestrator(L0) / track-subagent）、<code>track</code>（selection/script/visual/interaction/operation/voice/offscreen）、<code>mode</code>（classic/smart，Log 0024）、<code>market</code> / <code>language</code>（Log 0022）、<code>prompt_ver / stage / referenced_clip_ids / selling_points / donotsay_hits / compliance_flags / gen_time</code>。归因精确到"<strong>哪条职能轨道的哪个 subagent</strong>"。</li>
+</ul>
+<h3 id="p-3-3">画面层级模型（visual.layer = 底层渲染字段，保留；商家端不暴露）</h3>
+<ul>
+<li>直播大脑 JSON 中每个<strong>画面原子</strong>带 <code>visual.layer ∈ {background, foreground, none}</code>（<strong>V3 已砍 pip</strong>；商家端只感知"三层+数字人位置可调"，此字段仅供平台/渲染引擎使用）：<code>background</code> 铺满并临时替换全局背景 / <code>foreground</code> 全屏覆盖（优先级高于默认前景贴图）/ <code>none</code> 仅默认背景+数字人+默认前景。</li>
+<li><strong>全局背景层（global_background）</strong>：场次级字段，贯穿整场；某原子无 <code>background</code> 素材时回落全局背景；视频则循环。</li>
+<li><strong>运营 overlay 层（V3：品级 + 多元素）</strong>：每个品一个 <code>overlay</code> 层，含多个元素 <code>{type: product_image | price_tag | flash_sale | countdown, x, y, scale}</code>，元素种类不封顶；运营 subagent 产出、与时间轴联动。</li>
+<li>渲染按"画面布局种类数"调用慧播星底板（0/1/≥2，见 §8）——<code>layer</code> + 全局背景 + overlay 决定底板段数。</li>
+</ul>
+<h3 id="p-3-3b">⭐ 直播大脑 JSON · 多轨并发时间轴 schema 契约（剧本最核心 · 同一时间轴多轨叠加）</h3>
+<blockquote>这是剧本/Storyboard 的<strong>最核心数据契约</strong>：<strong>同一条绝对时间轴上多条轨道叠加、任一时刻可多轨并发</strong>（非顺序播）。编排端（Script Studio）产出、渲染端、商家端 §6.5 编辑三方<strong>共用同一契约</strong>。已同步写入 <code>.cursor</code> 项目约束。</blockquote>
+<pre><code>{
+  "timeline": {
+    "total_duration_sec": 0,                 // 由各 Scene TTS 时长累加驱动
+    "products": [                            // 主时间轴先切成"品时间段"
+      { "product_id": "...", "start_sec": 0, "end_sec": 0,
+        "scenes": [ { "scene_id": "...", "start_sec": 0, "end_sec": 0 } ] }
+    ],
+    "tracks": {                              // 每条轨道=独立泳道；原子带显式 [start,end]，可重叠
+      "speech":      [ { "atom_id","scene_id","start_sec","end_sec","segment":"hook|body|cta","text" } ],
+      "visual":      [ { "atom_id","start_sec","end_sec","layer":"none|foreground|background","clip_id","avatar_pos":{"x","y","scale"} } ],
+      "interaction": [ { "atom_id","start_sec","end_sec","scope":"live|product","type":"comment|qa" } ],
+      "operation":   [ { "atom_id","start_sec","end_sec","overlay":[{ "type":"product_image|price_tag|flash_sale|countdown","x","y","scale" }] } ],
+      "voice":       [ { "atom_id","start_sec","end_sec","voice_id","rate" } ],
+      "offscreen":   [ { "atom_id","start_sec","end_sec","kind":"sfx|tts","payload","gain_db","duck_bgm":true } ]
+    },
+    "render_contract": {
+      "visual_zorder":  ["operation_overlay","foreground_sticker","avatar","scene_clip","global_background"], // 上→下
+      "audio_priority": ["speech","offscreen_tts","sfx_bell","bgm"],                                          // 高→低
+      "ducking": "higher-priority active → attenuate lower（口播/场外音起 → BGM 自动压低）"
+    }
+  }
+}</code></pre>
+<ul>
+<li><strong>绝对时间对齐</strong>：所有轨原子用 <code>start_sec/end_sec</code> 定位，<strong>不靠数组顺序</strong>；多轨可同一时间窗重叠（speech+offscreen+sfx 同时）。</li>
+<li><strong>视觉合成</strong>：按 <code>visual_zorder</code> 自上而下合成；"画中画"＝ <code>avatar</code> 缩放定位叠在 <code>scene_clip</code> 之上（用三层实现、<strong>无独立 PIP</strong>）。</li>
+<li><strong>音频混音</strong>：按 <code>audio_priority</code> + ducking 混音，口播/场外音优先、BGM 自动让路。</li>
+<li><strong>provenance</strong>：每原子带 <code>provenance_id</code>（含 track + mode），并发原子逐一可溯源/归因。</li>
+<li><strong>驱动关系</strong>：<code>scene.end_sec - start_sec</code> 由该 scene 口播 TTS 时长决定（商家端 §6.6）。</li>
+</ul>
+<h3 id="p-3-4">合规左移 / 数据流</h3>
+<ul>
+<li>生成时即把平台治理红线（见 <code>TikTok平台治理与风控规则知识库.md</code> §9/§10）+ 商家"禁讲内容"注入生成 prompt；命中项打 <code>compliance_flags</code>，在原子卡标注（内部可见，商家端只看高亮）。</li>
+</ul>
+<pre><code>Clip Bank + 商家输入(卖点/禁讲/流程备注) + 双prompt
+        → L0 主 Agent 编排 + 6 职能 subagent 并行产出（共享上下文）
+        → 直播大脑 JSON（多轨道原子对齐时间轴）
+        → 写 provenance（独立表，JSON 引 id；含 agent_role/track）
+        → 合规左移校验
+        → 下发商家端 Step4（默认预填"可发布"水位）</code></pre>
+<h2 id="p-4"><span class="sec">§4</span> 🔁 Attribution Studio · 反馈与归因台（链路三：核心闭环）<span class="warn">【P1】</span></h2>
+<blockquote><strong>优先级【P1】</strong>：素材加工 P0 闭环就绪后，紧接着做数据归因，驱动 prompt 迭代。商家无感。</blockquote>
+<p><strong>职责</strong>：把三路信号汇成统一归因，产诊断报告，驱动 prompt 迭代。对应 Log 0004「三信号源 + 统一归因引擎」、Log 0005「分钟级双层」。</p>
+<h3 id="p-4-1">三信号源</h3>
+<table>
+<tr><th>信号</th><th>来源</th><th>说明</th></tr>
+<tr><td><strong>S1 测评分</strong></td><td>测评 2.0 rubric</td><td>脚本质量打分（生产即评）。<strong>V3：用测评 2.0 现有 rubric 做整场级打分</strong>；未来各职能 subagent（选品/脚本/画面/互动/声音/场外音）各自<strong>独立 rubric</strong> 再汇总成整场质量分（Log 0017）</td></tr>
+<tr><td><strong>S2 diff</strong></td><td>商家端 <code>s4_save</code> 埋点</td><td>"平台初稿 vs 商家保存稿"差异，<strong>LLM 分类</strong>改动类型（语气/卖点/合规规避…，Log 0005 敲定直接上分类）</td></tr>
+<tr><td><strong>S3 分钟级指标+处罚</strong></td><td>Mimir 分钟级 + 高光 API + 风控 API</td><td>运行时效果与风险（Log 0005：V3 做<strong>分钟级</strong>，非秒级）</td></tr>
+</table>
+<h3 id="p-4-2">统一归因引擎（双视角 × 双层）</h3>
+<ul>
+<li><strong>双视角</strong>：正向（奖励/高光识别）与 负向（合规处罚/风险）共用一套归因，按 <code>provenance_id</code> 把效果/风险<strong>回贴到</strong>具体脚本原子 + prompt 版本。</li>
+<li><strong>双层</strong>：L1 分钟级近似归因（运行时/准实时，内部用）；L2 离线精确归因（整场结束后回算）。</li>
+</ul>
+<h3 id="p-4-3">页面布局</h3>
+<ul>
+<li>左：场次列表（live_id + 状态 + S1/S2/S3 概览徽标）。</li>
+<li>中：<strong>归因视图</strong>——时间轴叠加分钟级指标曲线（GMV/转化/停留/互动）+ 高光段标记 + 风险/处罚标记；点曲线峰谷→定位到对应 Scene/原子→经 <code>provenance_id</code> 反查 prompt 版本。</li>
+<li>右：<strong>S2 diff 双栏</strong>（初稿 vs 保存稿，红绿对照 + LLM 分类标签）；<strong>诊断报告</strong>（自动生成：哪些原子/prompt 模式正/负相关，建议改向）。</li>
+</ul>
+<h3 id="p-4-4">数据流（闭环关键）</h3>
+<pre><code>S1 测评 ┐
+S2 diff ┤→ 统一归因引擎(双视角×双层, 按 provenance_id 回贴)
+S3 分钟级+处罚 ┘            │
+                          ▼
+                   诊断报告 + 改 prompt 建议
+                          │  （V3：人工确认，Log 0004）
+                          ▼
+                  Workflow Studio 改 prompt → 回归测评 → 上线</code></pre>
+<blockquote>V3 阶段所有 prompt 优化<strong>人工确认</strong>后应用（Log 0004），不做自动 RL。</blockquote>
+
+<h2 id="p-5"><span class="sec">§5</span> ⚙️ Workflow Studio · 算法诊断/工作流平台（链路四：prompt 版本 / 回归 / 上线）<span class="warn">【P1】</span></h2>
+<blockquote><strong>优先级【P1】</strong>：与归因台同期。<strong>P0 期先承载理解 prompt 的版本/回归/上线</strong>；生成 prompt（剧本）随 Script Studio 进 P2 后纳入管理。</blockquote>
+<p><strong>职责</strong>：双 prompt（理解/生成）的版本管理、灰度、回归测评（测评 2.0）、上线，闭合自进化环。</p>
+<h3 id="p-5-1">页面布局</h3>
+<ul>
+<li>左：prompt 列表（理解/生成两类 × 版本号 × 状态：Draft 琥珀 / Testing 蓝 / Live 绿 / Archived 灰）。</li>
+<li>中：prompt 编辑器 + 版本 diff（改了什么）+ 关联的归因诊断建议（来自 Attribution Studio）。</li>
+<li>右：<strong>回归测评面板</strong>——选基准场次集，跑测评 2.0，新旧版本分数对比 + 关键指标对比；通过则 <code>Promote to Live</code>（人工确认）。</li>
+<li><strong>质量卡口演进（Log 0017）</strong>：V3 用<strong>测评 2.0 整场打分</strong>作为统一卡口；未来按职能轨拆分——各 subagent（选品/脚本/画面/互动/声音/场外音）由各轨 PM 维护<strong>独立 rubric</strong>，回归测评升级为"分轨打分 → 加权汇总整场分"，prompt / Agent 定义按轨独立回归。</li>
+</ul>
+<h3 id="p-5-2">数据流</h3>
+<pre><code>归因诊断建议 → 新 prompt 草稿 → 回归测评(测评2.0, 基准集)
+   → 分数/指标对比 → 人工确认 Promote → Live 版本 → 回流 Script Studio 生产</code></pre>
+<h2 id="p-6"><span class="sec">§6</span> 闭环数据流总图</h2>
+<pre><code>flowchart LR
+  subgraph Seller[🧑‍💼 商家端 V2 五步链路]
+    A[上传素材/录屏] --&gt; B[选型/卖点/禁讲/备注]
+    B --&gt; C[Step4 改脚本→Save]
+  end
+  subgraph Platform[🏭 平台端 内部工作台]
+    M[Material Studio 分镜·解析·打标] --&gt; CB[(Clip Bank)]
+    CB --&gt; S[Script Studio 直播大脑JSON+provenance+合规]
+    S --&gt; |下发预填| C
+    C --&gt; |s4_save 埋点| AT[Attribution Studio]
+    M -.gemini-3-pro.-&gt; CB
+    EV[测评2.0 S1] --&gt; AT
+    MIN[Mimir分钟级/高光API/风控API S3] --&gt; AT
+    C --&gt; |diff原料 S2| AT
+    AT --&gt; |诊断+建议| WF[Workflow Studio prompt版本/回归/上线]
+    WF --&gt; |Promote 人工确认| S
+  end
+  A --&gt; M</code></pre>
+<blockquote>上为 mermaid 源码（可粘贴到支持 mermaid 的工具渲染）。文字版闭环：<br>商家上传 → Material 分镜入 Clip Bank → Script 生产 JSON 下发预填 → 商家改脚本 Save（S2）→ 连同 S1 测评 / S3 分钟级 汇入 Attribution → 诊断建议 → Workflow 改 prompt 人工确认 Promote → 回流 Script 生产（闭环）。</blockquote>
+
+<h2 id="p-7"><span class="sec">§7</span> 与商家端的接口（埋点 = 唯一数据入口）</h2>
+<table>
+<tr><th>商家端埋点</th><th>平台端落点</th></tr>
+<tr><td><strong>S1 market/language</strong></td><td><code>shared_context.market/language</code>：脚本语言/合规口径/素材 ASR 语言/音色选择</td></tr>
+<tr><td><strong>mode_select（classic/smart）</strong></td><td><code>shared_context.mode</code> + provenance.mode：分模式归因/AB（§1.5）</td></tr>
+<tr><td>S1 avatar/bg 选择</td><td>选型偏好分析（人格卡推荐）</td></tr>
+<tr><td>S2 sellingpoints/<strong>donotsay</strong></td><td>Script Studio 生成约束 + 合规左移</td></tr>
+<tr><td>S3 asset_upload</td><td>Material Studio 分镜入口</td></tr>
+<tr><td>S3 scene_reorder / method_switch / flow_notes</td><td>布局/流程偏好</td></tr>
+<tr><td><strong>S4 script_edit（前后差） + save</strong></td><td><strong>Attribution Studio：S2 diff 流水线触发</strong></td></tr>
+<tr><td>S4 interaction/operation_toggle</td><td>互动/运营原子有效性归因</td></tr>
+<tr><td>S5 golive / end_live</td><td>S3 分钟级归因起止锚点</td></tr>
+</table>
+<blockquote>商家只发埋点、不看分析；分析与回贴全在平台端。</blockquote>
+
+<h2 id="p-8"><span class="sec">§8</span> 复用既有平台能力清单（降自研）</h2>
+<table>
+<tr><th>能力</th><th>复用来源</th><th>用在</th></tr>
+<tr><td>自动场景分镜 / 高光识别</td><td><code>短带直高光视频生成算法方案解析.md</code> / <code>直播高光片段剪辑</code></td><td>Material Studio 分镜 + Attribution 高光段</td></tr>
+<tr><td>分钟级指标</td><td>Mimir 分钟级接口（见 <code>直播指标列表.md</code> §十/§十二）</td><td>Attribution Studio S3</td></tr>
+<tr><td>风险/处罚归因</td><td>Creator Risk Investigation API + 治理知识库 §9/§10</td><td>Attribution 负向视角</td></tr>
+<tr><td>渲染底板</td><td>百度慧播星底板（按画面布局种类数 0/1/≥2 调用）</td><td>生产→渲染侧</td></tr>
+<tr><td>画面理解/打标</td><td><code>gemini-3-pro-preview-new</code>（ModelHub 内网）</td><td>Material / Script 合规左移</td></tr>
+</table>
+
+<h2 id="p-9"><span class="sec">§9</span> 角色权限（内部）</h2>
+<table>
+<tr><th>角色</th><th>Material</th><th>Script</th><th>Attribution</th><th>Workflow</th></tr>
+<tr><td>运营</td><td>管素材/入库</td><td>看 JSON</td><td>看效果/诊断</td><td>看版本</td></tr>
+<tr><td>产品</td><td>看</td><td>看链路</td><td>看诊断/决策</td><td>看回归</td></tr>
+<tr><td>算法</td><td>调分镜参数</td><td>调生产逻辑</td><td>看归因明细</td><td><strong>改 prompt/跑回归/Promote</strong></td></tr>
+</table>
+</section>
+  </main>
+</div>
+<script>
+function showTab(w){
+  var s=w==='seller';
+  document.getElementById('seller-doc').classList.toggle('active',s);
+  document.getElementById('platform-doc').classList.toggle('active',!s);
+  document.getElementById('seller-toc').classList.toggle('active',s);
+  document.getElementById('platform-toc').classList.toggle('active',!s);
+  document.getElementById('tab-seller').classList.toggle('active',s);
+  document.getElementById('tab-platform').classList.toggle('active',!s);
+  window.scrollTo(0,0);
+}
+function buildTOC(docId,tocId){
+  var doc=document.getElementById(docId),toc=document.getElementById(tocId);
+  doc.querySelectorAll('h2,h3').forEach(function(h){
+    if(!h.id) return;
+    var a=document.createElement('a');
+    a.href='#'+h.id; a.textContent=h.textContent;
+    if(h.tagName==='H3') a.className='lv3';
+    a.onclick=function(e){e.preventDefault();document.getElementById(h.id).scrollIntoView({behavior:'smooth'});};
+    toc.appendChild(a);
+  });
+}
+window.addEventListener('DOMContentLoaded',function(){
+  buildTOC('seller-doc','seller-toc');
+  buildTOC('platform-doc','platform-toc');
+  initAnn();
+});
+
+/* ===== 批注 / 修改建议 ===== */
+var ANN_KEY='v3plan_ann_0616';
+try{['v3plan_ann','v3plan_ann_v2'].forEach(function(k){localStorage.removeItem(k);});}catch(e){}
+function annGet(){try{return JSON.parse(localStorage.getItem(ANN_KEY))||[];}catch(e){return[];}}
+function annSet(a){localStorage.setItem(ANN_KEY,JSON.stringify(a));}
+function uid(){return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function esc(s){return (s||'').replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function activeTab(){return document.getElementById('seller-doc').classList.contains('active')?'seller':'platform';}
+function tabLabel(t){return t==='seller'?'商家端':'平台端';}
+function toast(msg){var t=document.createElement('div');t.textContent=msg;t.style.cssText='position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#15201d;color:#fff;padding:9px 16px;border-radius:8px;z-index:120;font-size:12.5px';document.body.appendChild(t);setTimeout(function(){t.remove();},1900);}
+function openPanel(o){document.getElementById('ann-panel').classList.toggle('open',o);}
+
+function nearestHeading(node){
+  var el=node&&node.nodeType===3?node.parentElement:node;
+  if(!el||!el.closest)return null;
+  var doc=el.closest('.doc'); if(!doc)return null;
+  var hs=[].slice.call(doc.querySelectorAll('h2,h3')); var res=null;
+  for(var i=0;i<hs.length;i++){
+    var pos=el.compareDocumentPosition(hs[i]);
+    if(pos & Node.DOCUMENT_POSITION_PRECEDING){res=hs[i];}
+    else if(pos & Node.DOCUMENT_POSITION_FOLLOWING){break;}
+  }
+  return res;
+}
+function highlightRange(range,id){
+  try{
+    var m=document.createElement('mark');m.className='cm';m.dataset.cid=id;
+    range.surroundContents(m); m.title='点击查看该评论';
+    m.onclick=function(){openPanel(true);var el=document.querySelector('.ann-item[data-cid="'+id+'"]');if(el){el.scrollIntoView({block:'center'});el.style.background='#fff8e1';setTimeout(function(){el.style.background='';},1300);}};
+    return true;
+  }catch(e){return false;}
+}
+function reHighlight(tab,quote,id){
+  var doc=document.getElementById(tab+'-doc'); if(!doc)return false;
+  var w=document.createTreeWalker(doc,NodeFilter.SHOW_TEXT,null),n;
+  while(n=w.nextNode()){
+    if(n.parentElement&&n.parentElement.tagName==='MARK')continue;
+    var idx=n.nodeValue.indexOf(quote);
+    if(idx>-1){var r=document.createRange();r.setStart(n,idx);r.setEnd(n,idx+quote.length);return highlightRange(r,id);}
+  }
+  return false;
+}
+
+var pop,curRange,curText;
+function hidePop(){if(pop){pop.remove();pop=null;}}
+document.addEventListener('mousedown',function(e){if(pop&&!pop.contains(e.target))hidePop();});
+document.addEventListener('mouseup',function(e){
+  if(e.target.closest&&(e.target.closest('.ann-pop')||e.target.closest('#ann-panel')||e.target.closest('header')||e.target.closest('nav.toc')))return;
+  setTimeout(function(){
+    var sel=window.getSelection(); var t=sel?sel.toString().trim():'';
+    if(t.length<2||!sel||sel.rangeCount===0)return;
+    curText=t; curRange=sel.getRangeAt(0).cloneRange();
+    var r=sel.getRangeAt(0).getBoundingClientRect();
+    showPop(r.left+window.scrollX,r.bottom+window.scrollY);
+  },1);
+});
+function showPop(x,y){
+  hidePop();
+  pop=document.createElement('div');pop.className='ann-pop';
+  pop.style.left=Math.max(8,Math.min(x,window.scrollX+window.innerWidth-258))+'px';
+  pop.style.top=(y+6)+'px';
+  pop.innerHTML='<textarea placeholder="对所选文字的修改建议…"></textarea><div class="row"><button class="cancel">取消</button><button class="save">保存评论</button></div>';
+  document.body.appendChild(pop);
+  var ta=pop.querySelector('textarea');ta.focus();
+  pop.querySelector('.cancel').onclick=hidePop;
+  pop.querySelector('.save').onclick=function(){var c=ta.value.trim();if(!c){ta.focus();return;}saveAnn(c);hidePop();};
+  ta.addEventListener('keydown',function(ev){if((ev.metaKey||ev.ctrlKey)&&ev.key==='Enter'){var c=ta.value.trim();if(c){saveAnn(c);hidePop();}}});
+}
+function saveAnn(comment){
+  var h=nearestHeading(curRange.startContainer);
+  var sec=h?h.textContent.trim():'(顶部)';
+  var id=uid(); var ok=highlightRange(curRange,id);
+  var a=annGet(); a.push({id:id,tab:activeTab(),section:sec,quote:curText,comment:comment,ts:Date.now(),hl:ok});
+  annSet(a); renderPanel(); openPanel(true); toast('已记录评论');
+}
+function gotoAnn(it){
+  if(it.tab!==activeTab())showTab(it.tab);
+  var m=document.querySelector('mark.cm[data-cid="'+it.id+'"]');
+  if(m){m.scrollIntoView({block:'center',behavior:'smooth'});m.style.outline='2px solid var(--red)';setTimeout(function(){m.style.outline='';},1500);return;}
+  var doc=document.getElementById(it.tab+'-doc'),hs=[].slice.call(doc.querySelectorAll('h2,h3'));
+  for(var i=0;i<hs.length;i++){if(hs[i].textContent.trim()===it.section){hs[i].scrollIntoView({behavior:'smooth'});break;}}
+}
+function delAnn(id){
+  annSet(annGet().filter(function(x){return x.id!==id;}));
+  var m=document.querySelector('mark.cm[data-cid="'+id+'"]');
+  if(m){var p=m.parentNode;while(m.firstChild)p.insertBefore(m.firstChild,m);p.removeChild(m);if(p.normalize)p.normalize();}
+  renderPanel();
+}
+function renderPanel(){
+  var list=document.getElementById('ann-list'),a=annGet();
+  document.getElementById('ann-count').textContent=a.length;
+  if(!a.length){list.innerHTML='<div class="ann-empty">还没有评论。<br>在正文里<strong>选中任意文字</strong>即可写修改建议。</div>';return;}
+  list.innerHTML='';
+  a.forEach(function(it){
+    var d=document.createElement('div');d.className='ann-item';d.dataset.cid=it.id;
+    d.innerHTML='<div class="sec">['+tabLabel(it.tab)+'] '+esc(it.section)+'</div><div class="q">“'+esc(it.quote)+'”</div><div class="c">'+esc(it.comment)+'</div><div class="mini"><a class="go">定位</a><a class="del">删除</a></div>';
+    d.querySelector('.go').onclick=function(){gotoAnn(it);};
+    d.querySelector('.del').onclick=function(){delAnn(it.id);};
+    list.appendChild(d);
+  });
+}
+function toMarkdown(){
+  var a=annGet(); if(!a.length)return '（暂无评论）';
+  var g={}; a.forEach(function(it){var k=tabLabel(it.tab)+' ｜ '+it.section;(g[k]=g[k]||[]).push(it);});
+  var out='# V3 方案批注汇总（'+a.length+' 条）\n\n';
+  Object.keys(g).forEach(function(k){out+='## '+k+'\n';g[k].forEach(function(it){out+='- 引文：“'+it.quote+'”\n  - 建议：'+it.comment+'\n';});out+='\n';});
+  return out;
+}
+function copyMD(){var t=toMarkdown();if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){toast('已复制 Markdown，可直接粘贴给我');},function(){window.prompt('复制以下内容：',t);});}else{window.prompt('复制以下内容：',t);}}
+function exportJSON(){var blob=new Blob([JSON.stringify(annGet(),null,2)],{type:'application/json'});var url=URL.createObjectURL(blob);var x=document.createElement('a');x.href=url;x.download='V3方案批注.json';x.click();URL.revokeObjectURL(url);}
+function clearAll(){if(confirm('清空所有评论？此操作不可恢复。')){annSet([]);document.querySelectorAll('mark.cm').forEach(function(m){var p=m.parentNode;while(m.firstChild)p.insertBefore(m.firstChild,m);p.removeChild(m);});renderPanel();}}
+function initAnn(){
+  var fab=document.createElement('button');fab.id='ann-fab';fab.innerHTML='💬 评论 <span id="ann-count">0</span>';
+  fab.onclick=function(){openPanel(!document.getElementById('ann-panel').classList.contains('open'));};
+  document.body.appendChild(fab);
+  var panel=document.createElement('div');panel.id='ann-panel';
+  panel.innerHTML='<div class="hd">批注 / 修改建议<span onclick="openPanel(false)">✕</span></div><div class="acts"><button id="b-md">复制 Markdown</button><button id="b-json">导出 JSON</button><button id="b-clr">清空</button></div><div id="ann-list"></div>';
+  document.body.appendChild(panel);
+  document.getElementById('b-md').onclick=copyMD;
+  document.getElementById('b-json').onclick=exportJSON;
+  document.getElementById('b-clr').onclick=clearAll;
+  annGet().forEach(function(it){if(it.hl!==false)reHighlight(it.tab,it.quote,it.id);});
+  renderPanel();
+}
+</script>
+</body>
+</html>

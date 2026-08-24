@@ -1,0 +1,136 @@
+{
+  "asset": {
+    "merchant": {
+      "shop_id": "7494386460125857294",
+      "shop_name": "coco shop",
+      "handle": "7colorsbunny",
+      "author_id": "7341325938133500970"
+    },
+    "source": "method2_use_your_video",
+    "original_filename": "user your video短视频_手持桃黄混珠小盒_A1-A7_29s.mp4",
+    "duration_sec": 29.0,
+    "format": "MP4 / 1080x1920 / 30fps / H.264",
+    "has_speech": null,
+    "has_speech_status": "placeholder_no_asr_this_version",
+    "frame_sample_fps": 1,
+    "parsed_by": "gemini-3-pro-preview-new",
+    "method": "1fps frame sampling -> gemini shot-boundary + semantic aggregation"
+  },
+  "summary": {
+    "main_product_guess": "DIY bead kit with storage box",
+    "main_product_guess_zh": "DIY串珠套装（含收纳盒）",
+    "overall_tags": [
+      "DIY",
+      "Beads",
+      "Crafting",
+      "Jewelry Making",
+      "Storage",
+      "ASMR",
+      "手工",
+      "串珠",
+      "材料包"
+    ],
+    "shot_count": 3
+  },
+  "clips": [
+    {
+      "clip_index": 1,
+      "start_sec": 0,
+      "end_sec": 4,
+      "clip_type": "strong",
+      "visual": "Against a backdrop of colorful beads in bins, a person presents an empty, clear, multi-compartment storage box.",
+      "visual_zh": "在装满彩色珠子的收纳盒背景前，一个人展示了一个空的、透明的多格收纳盒。",
+      "tags": [
+        "Product Intro",
+        "Storage Box",
+        "Organizer",
+        "Craft Supplies",
+        "收纳盒"
+      ],
+      "recommend_use": "foreground",
+      "recommend_reason": "Clear introduction of the storage container.",
+      "match_score": 85,
+      "highlight": false,
+      "thumbnail": "frames/method2_uyv_29s/f_003.jpg",
+      "asr": null,
+      "asr_lang": null,
+      "asr_status": "placeholder_no_asr_this_version",
+      "visual_layer": "foreground"
+    },
+    {
+      "clip_index": 2,
+      "start_sec": 5,
+      "end_sec": 20,
+      "clip_type": "strong",
+      "visual": "A person uses a small cup and spoon to scoop an assortment of pink, cream, and clear beads and transfer them into the storage box.",
+      "visual_zh": "一个人用小杯子和勺子舀取粉色、奶油色和透明的珠子组合，并将其装入收纳盒中。",
+      "tags": [
+        "DIY",
+        "Crafting Process",
+        "ASMR",
+        "Beading",
+        "过程展示",
+        "手工"
+      ],
+      "recommend_use": "foreground",
+      "recommend_reason": "Engaging demonstration of using the product, with satisfying ASMR qualities.",
+      "match_score": 95,
+      "highlight": true,
+      "thumbnail": "frames/method2_uyv_29s/f_013.jpg",
+      "asr": null,
+      "asr_lang": null,
+      "asr_status": "placeholder_no_asr_this_version",
+      "visual_layer": "foreground"
+    },
+    {
+      "clip_index": 3,
+      "start_sec": 21,
+      "end_sec": 28,
+      "clip_type": "strong",
+      "visual": "Hands hold up and display the storage box now filled with the curated bead assortment.",
+      "visual_zh": "双手举起并展示已装满精选珠子组合的收纳盒。",
+      "tags": [
+        "Product Display",
+        "Final Result",
+        "Bead Kit",
+        "DIY Kit",
+        "成品展示"
+      ],
+      "recommend_use": "foreground",
+      "recommend_reason": "Excellent final showcase of the product, showing the completed look.",
+      "match_score": 100,
+      "highlight": true,
+      "thumbnail": "frames/method2_uyv_29s/f_025.jpg",
+      "asr": null,
+      "asr_lang": null,
+      "asr_status": "placeholder_no_asr_this_version",
+      "visual_layer": "foreground"
+    }
+  ],
+  "_usage": {
+    "completion_tokens": 719,
+    "prompt_tokens": 8090,
+    "total_tokens": 11060,
+    "reasoning_tokens": 2251,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "traffic_type": "PROVISIONED_THROUGHPUT",
+    "promptTokensDetails": [
+      {
+        "modality": "IMAGE",
+        "tokenCount": 7482
+      },
+      {
+        "modality": "TEXT",
+        "tokenCount": 608
+      }
+    ],
+    "candidatesTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 719
+      }
+    ]
+  }
+}

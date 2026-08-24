@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>脚本生产与测评 Pipeline · 算法 & 研发对齐稿</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --ink:#1f2937; --ink2:#5b6472; --line:#e5e7eb; --line2:#eef0f3;
+    --fact:#2563eb;   /* 事实域 */
+    --intent:#ea580c; /* 意图域 */
+    --asset:#7c3aed;  /* 素材域 */
+    --gen:#059669;    /* 生成产出 */
+    --eval:#dc2626;   /* 测评 */
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Segoe UI,sans-serif;
+    --nav-w:228px; --top-h:54px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.6}
+  code,pre,.mono{font-family:var(--mono)}
+
+  /* top bar */
+  .top{position:fixed;top:0;left:0;right:0;height:var(--top-h);background:#0f172a;color:#fff;display:flex;align-items:center;gap:16px;padding:0 18px;z-index:60}
+  .top .t{font-weight:800;font-size:15px;letter-spacing:.3px}
+  .top .tag{font-size:11px;background:#1e293b;color:#94a3b8;padding:3px 8px;border-radius:5px}
+  .top .legend{margin-left:auto;display:flex;gap:12px;font-size:11px;color:#cbd5e1;flex-wrap:wrap}
+  .top .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:middle}
+
+  /* layout */
+  .wrap{display:flex;padding-top:var(--top-h)}
+  .nav{position:sticky;top:var(--top-h);align-self:flex-start;width:var(--nav-w);height:calc(100vh - var(--top-h));overflow:auto;border-right:1px solid var(--line);background:#fafbfc;padding:14px 10px;flex:none}
+  .nav a{display:block;padding:7px 10px;border-radius:7px;color:var(--ink2);text-decoration:none;font-size:13px;font-weight:600}
+  .nav a:hover{background:#eef2f7;color:var(--ink)}
+  .nav a.sub{padding-left:22px;font-size:12px;font-weight:500;color:#7b8494}
+  .nav .grp{font-size:11px;color:#9aa3b1;font-weight:800;margin:12px 10px 3px;letter-spacing:.5px}
+  main{flex:1;min-width:0;padding:26px 34px 120px;max-width:1180px}
+
+  section{margin-bottom:46px;scroll-margin-top:70px}
+  h2{font-size:21px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  h2 .num{font-size:12px;font-weight:800;color:#fff;background:#0f172a;padding:3px 8px;border-radius:6px}
+  .sub-desc{color:var(--ink2);margin:0 0 16px;font-size:13px}
+  h3{font-size:15px;margin:22px 0 10px}
+
+  .platform-banner{background:linear-gradient(90deg,#0f766e,#0d9488);color:#fff;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .platform-banner .seller{background:#fff;color:#0f766e;border-radius:5px;padding:1px 7px;font-size:11px;font-weight:800}
+
+  /* principle chips */
+  .principles{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+  .principle{flex:1;min-width:210px;background:var(--card);border:1px solid var(--line);border-left:4px solid #0f172a;border-radius:10px;padding:12px 14px}
+  .principle b{display:block;font-size:13.5px;margin-bottom:3px}
+  .principle span{font-size:12px;color:var(--ink2)}
+
+  /* hero flow */
+  .flow{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;overflow-x:auto}
+  .flow-row{display:flex;align-items:stretch;gap:0;min-width:760px}
+  .flow-stage{flex:1;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px}
+  .flow-arrow{display:flex;align-items:center;justify-content:center;color:#9aa3b1;font-size:24px;padding:0 6px;font-weight:700}
+  .flow-stage.s1{background:#eff6ff;border:1px solid #bfdbfe}
+  .flow-stage.s2{background:#ecfdf5;border:1px solid #a7f3d0}
+  .flow-stage.s3{background:#fef2f2;border:1px solid #fecaca}
+  .flow-stage h4{margin:0;font-size:13px}
+  .flow-mini{background:#fff;border-radius:7px;padding:7px 9px;font-size:11.5px;color:var(--ink2);border:1px solid var(--line2)}
+  .loop-note{text-align:center;color:var(--eval);font-size:12px;font-weight:700;margin-top:10px}
+
+  /* generic cards */
+  .cards{display:flex;gap:14px;flex-wrap:wrap}
+  .card{flex:1;min-width:260px;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:15px}
+  .card.fact{border-top:4px solid var(--fact)}
+  .card.intent{border-top:4px solid var(--intent)}
+  .card.asset{border-top:4px solid var(--asset)}
+  .card.future{border:1px dashed #cbd5e1;background:#fbfcfd;color:#94a3b8}
+  .card h4{margin:0 0 8px;font-size:14px;display:flex;align-items:center;gap:7px}
+  .pill{font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:20px;color:#fff}
+  .pill.fact{background:var(--fact)} .pill.intent{background:var(--intent)} .pill.asset{background:var(--asset)}
+  .pill.gen{background:var(--gen)} .pill.eval{background:var(--eval)} .pill.future{background:#94a3b8}
+  .card ul{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--ink2)}
+  .card ul li{margin:3px 0}
+
+  .ph{color:#aab2bf;font-style:italic;font-size:12px}
+  .todo{display:inline-block;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:5px;padding:1px 7px;font-size:10.5px;font-weight:800;margin-left:6px}
+
+  /* alert */
+  .alert{background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:13px 16px;margin:14px 0;font-size:13px}
+  .alert b{color:#c2410c}
+  .alert.eval{background:#fef2f2;border-color:#fca5a5}
+  .alert.eval b{color:var(--eval)}
+
+  /* DAG */
+  .dag{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;overflow-x:auto}
+  .dag-row{display:flex;align-items:center;gap:0;min-width:880px}
+  .node{background:#ecfdf5;border:1.5px solid #6ee7b7;border-radius:10px;padding:11px 12px;cursor:pointer;min-width:120px;text-align:center;transition:.15s;position:relative}
+  .node:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(5,150,105,.18)}
+  .node.active{background:#059669;border-color:#047857;color:#fff}
+  .node .n-step{font-size:10px;color:#10b981;font-weight:800}
+  .node.active .n-step{color:#d1fae5}
+  .node .n-name{font-size:12.5px;font-weight:700;margin-top:2px}
+  .node.key{border-color:#dc2626;background:#fef2f2}
+  .node.key .n-step{color:#dc2626}
+  .node.assemble{border-color:#0f172a;background:#f1f5f9}
+  .node.assemble .n-step{color:#0f172a}
+  /* hover 上下游高亮 */
+  .dag-row.hovering .node{opacity:.4}
+  .dag-row.hovering .node.up{opacity:1;outline:2px dashed #2563eb;outline-offset:1px}
+  .dag-row.hovering .node.down{opacity:1;outline:2px dashed #059669;outline-offset:1px}
+  .dag-row.hovering .node.hot{opacity:1;outline:2px solid #0f172a;outline-offset:1px}
+  .dag-row.hovering .arrow.up{color:#2563eb} .dag-row.hovering .arrow.down{color:#059669}
+  .dag-hint{font-size:11px;color:#94a3b8;margin:8px 0 0}
+  .dag-hint b.u{color:#2563eb} .dag-hint b.d{color:#059669}
+  .arrow{color:#94a3b8;font-size:20px;padding:0 4px;flex:none}
+
+  /* module detail */
+  .module{display:none;border:1px solid var(--line);border-left:4px solid var(--gen);border-radius:10px;background:var(--card);padding:16px;margin-top:16px}
+  .module.show{display:block}
+  .module h4{margin:0 0 12px;font-size:15px}
+  .mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+  .mbox{background:#f8fafc;border:1px solid var(--line2);border-radius:8px;padding:10px 12px}
+  .mbox .lbl{font-size:10.5px;font-weight:800;color:#64748b;letter-spacing:.4px;text-transform:uppercase;margin-bottom:5px}
+  .mbox .v{font-size:12.5px;color:var(--ink)}
+  .mbox.io{border-left:3px solid var(--fact)}
+  .mbox.proc{border-left:3px solid #8b5cf6}
+  .mbox.out{border-left:3px solid var(--gen)}
+  .mbox.dep{border-left:3px solid #f59e0b}
+  .mbox.prov{border-left:3px solid #64748b}
+  .tagm{display:inline-block;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;margin-right:4px}
+  .tagm.model{background:#ede9fe;color:#6d28d9}
+  .tagm.rule{background:#dbeafe;color:#1d4ed8}
+  .tagm.llm{background:#dcfce7;color:#15803d}
+
+  /* mini timeline */
+  .tl{background:#0f172a;border-radius:10px;padding:14px;margin-top:14px;color:#cbd5e1;font-size:11px}
+  .tl .track{display:flex;align-items:center;gap:8px;margin:5px 0}
+  .tl .tname{width:78px;flex:none;color:#94a3b8;font-weight:700;font-family:var(--mono)}
+  .tl .lane{flex:1;height:20px;background:#1e293b;border-radius:4px;position:relative}
+  .tl .blk{position:absolute;height:20px;border-radius:4px;top:0;font-size:10px;color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap}
+
+  /* eval layers */
+  .eval-layers{display:flex;flex-direction:column;gap:0;align-items:center}
+  .eval-card{width:100%;background:var(--card);border:1px solid var(--line);border-top:4px solid var(--eval);border-radius:11px;padding:15px}
+  .eval-loop{color:var(--eval);font-weight:800;font-size:22px;margin:6px 0}
+
+  /* tables */
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:12.5px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line2);vertical-align:top}
+  th{background:#f1f5f9;font-size:11.5px;color:#475569;font-weight:800}
+  tr:last-child td{border-bottom:none}
+
+  /* contract / code */
+  details.contract{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;overflow:hidden}
+  details.contract>summary{cursor:pointer;padding:12px 16px;font-weight:700;font-size:13.5px;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+  details.contract>summary::-webkit-details-marker{display:none}
+  details.contract>summary::before{content:"▸";color:#94a3b8;font-size:12px}
+  details.contract[open]>summary::before{content:"▾"}
+  details.contract>summary .src{margin-left:auto;font-size:10.5px;color:#94a3b8;font-weight:600}
+  pre{margin:0;padding:14px 16px;background:#0f172a;color:#e2e8f0;font-size:11.5px;line-height:1.55;overflow-x:auto}
+  pre .c{color:#64748b}
+  pre .k{color:#7dd3fc}
+  pre .s{color:#86efac}
+  pre .n{color:#fca5a5}
+
+  .open-q li{margin:8px 0}
+  .open-q b{color:#0f172a}
+  .foot{color:#9aa3b1;font-size:11.5px;border-top:1px solid var(--line);padding-top:14px;margin-top:30px}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="t">脚本生产与测评 Pipeline</span>
+  <span class="tag">算法 &amp; 研发对齐稿 · 骨架 v0.1</span>
+  <span class="tag">2026-06-17</span>
+  <span class="legend">
+    <span><i style="background:#2563eb"></i>事实域</span>
+    <span><i style="background:#ea580c"></i>意图域</span>
+    <span><i style="background:#7c3aed"></i>素材域</span>
+    <span><i style="background:#059669"></i>生成产出</span>
+    <span><i style="background:#dc2626"></i>测评</span>
+  </span>
+</div>
+
+<div class="wrap">
+  <nav class="nav">
+    <div class="grp">总览</div>
+    <a href="#overview">0 · 全景数据流</a>
+    <div class="grp">步骤一 · 输入</div>
+    <a href="#step1">1 · 信息获取（三角输入）</a>
+    <a href="#step1" class="sub">事实 / 意图 / 素材</a>
+    <a href="#step1" class="sub">冲突与合规校验</a>
+    <div class="grp">步骤二 · 生成</div>
+    <a href="#step2">2 · 生成 Pipeline（DAG）</a>
+    <a href="#step2" class="sub">模块五件套</a>
+    <a href="#step2" class="sub">多轨时间轴装配</a>
+    <div class="grp">步骤三 · 测评</div>
+    <a href="#step3">3 · 测评闭环（双层）</a>
+    <div class="grp">附录</div>
+    <a href="#contract">4 · 数据契约</a>
+    <a href="#open">5 · 开放问题</a>
+  </nav>
+
+  <main>
+    <!-- ===================== §0 ===================== -->
+    <section id="overview" data-ann-group="0-全景">
+      <h2><span class="num">0</span> 全景数据流</h2>
+      <p class="sub-desc">脚本生产与测评 = <b>输入 → 生成 → 测评闭环</b>三段式。本页按数据流主线组织，给算法 &amp; 研发对齐每个模块的输入/处理/输出/依赖/接口契约。</p>
+
+      <div class="platform-banner">
+        🏭 全链路属于 <b style="margin:0 4px">平台端（生产+智能层）· 商家无感</b> ｜ 商家仅 2 个触点：
+        <span class="seller">① 录入商品卖点</span> <span class="seller">② 改稿→保存（反馈）</span>
+      </div>
+
+      <div class="flow">
+        <div class="flow-row">
+          <div class="flow-stage s1">
+            <h4>步骤1 · 信息获取</h4>
+            <div class="flow-mini">信息1 商品基础域 API（事实）</div>
+            <div class="flow-mini">信息2 商家录入卖点（意图）</div>
+            <div class="flow-mini">信息3 最强相关 clips（素材）</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-stage s2">
+            <h4>步骤2 · 生成 Pipeline（DAG）</h4>
+            <div class="flow-mini">排序 → 卖点池 → 卖点×clip 匹配</div>
+            <div class="flow-mini">→ 脚本 → 专场文案</div>
+            <div class="flow-mini">→ 剧本装配（多轨直播大脑 JSON）</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-stage s3">
+            <h4>步骤3 · 测评闭环</h4>
+            <div class="flow-mini">生成前门禁（质量分+合规）</div>
+            <div class="flow-mini">上线后归因（分钟级+diff）</div>
+            <div class="flow-mini">↺ 回流迭代 prompt</div>
+          </div>
+        </div>
+        <div class="loop-note">↺ 测评结果回流，驱动生成 pipeline 自迭代</div>
+      </div>
+
+      <h3>三条设计原则</h3>
+      <div class="principles">
+        <div class="principle"><b>事实域 vs 生成域</b><span>API 给结构化事实；痛点/场景/差异化亮点由 LLM 在事实上推理生成。</span></div>
+        <div class="principle"><b>生成与测评拆开</b><span>卖点生成、卖点测评是两条解耦链路；不绑定"五点详描"接口。</span></div>
+        <div class="principle"><b>双端归位</b><span>三步全在平台端，商家无感；后台术语不外露到商家端。</span></div>
+      </div>
+    </section>
+
+    <!-- ===================== §1 ===================== -->
+    <section id="step1" data-ann-group="1-输入">
+      <h2><span class="num">1</span> 信息获取 · 三角输入</h2>
+      <p class="sub-desc">三个互补维度：客观事实、商家主观意图、画面素材。下方为各源的来源 / 用途 / 真实样例。</p>
+
+      <div class="cards">
+        <div class="card fact">
+          <h4><span class="pill fact">事实</span> 信息1 · 商品基础域 API</h4>
+          <ul>
+            <li><b>来源</b>：GEC <code>oec.product.product_detail</code></li>
+            <li><b>用途</b>：商品/品类特点、价格、物流、售后、合规校验依据</li>
+            <li><b>样例</b>：见 §4 最小字段集契约</li>
+          </ul>
+        </div>
+        <div class="card intent">
+          <h4><span class="pill intent">意图</span> 信息2 · 商家录入卖点</h4>
+          <ul>
+            <li><b>来源</b>：商家创建直播、选品后主动录入</li>
+            <li><b>用途</b>：商家最懂品的卖点意图（"喂数据"通道）</li>
+            <li><b>注意</b>：<span style="color:#c2410c">不可直接采信，须合规校验（见下）</span></li>
+          </ul>
+        </div>
+        <div class="card asset">
+          <h4><span class="pill asset">素材</span> 信息3 · 最强相关 clips</h4>
+          <ul>
+            <li><b>来源</b>：平台解析的 Clip Bank（gemini-3-pro 分镜）</li>
+            <li><b>用途</b>：决定 visual 轨；卖点配画面</li>
+            <li><b>样例</b>：见 §4 Clip Bank 契约（含 match_score）</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ★信息1 字段全清单（事实域，能拿到的信息）★ -->
+      <h3 style="margin-top:26px"><span class="pill fact" style="margin-right:6px">信息1 详解</span> 商品基础域 API · 能拿到什么（事实域全清单）</h3>
+      <p class="sub-desc" style="margin-bottom:10px">
+        以下字段<b>全部可从 GEC <code>oec.product.product_detail</code> 取到</b>，是脚本生产最确定的输入。
+        来源：<code>商品基础域对外API文档.md</code> §3 字段分类总表。<b>按需取，勿传 <code>all</code></b>（单商品完整信息十几 K）。
+      </p>
+      <table>
+        <tr><th style="width:130px">业务域</th><th>能拿到的关键字段</th><th style="width:170px">脚本可用点</th><th style="width:150px">取数方式</th></tr>
+        <tr>
+          <td><b style="color:var(--fact)">① 商品基础</b></td>
+          <td><code>name</code> <code>images</code> <code>white_background_image</code> <code>video</code> <code>html_desc</code> · <code>category_detail</code>/<code>categories_v2</code>/<code>fe_category</code> · <code>brand</code>/<code>universal_brand</code>/<code>brand_detail</code> · <code>product_properties</code> <code>sale_properties</code> <code>attributes</code> · <code>manuals</code> <code>size_chart_data</code></td>
+          <td>商品&品类特点、画面取图、规格参数、品牌背书、怎么用/怎么选</td>
+          <td><code>product_fields</code>；类目/属性直传；<code>size_chart_data</code> 需 <code>options.need_size_chart_data</code></td>
+        </tr>
+        <tr>
+          <td><b style="color:var(--fact)">② 价格</b></td>
+          <td><code>min_sale_price</code> <code>max_sale_price</code> · <code>sku_price</code> <code>channel_sku_price</code> <code>combo_sub_sku_price</code> · <code>fee</code>(押金)</td>
+          <td>报价/价格锚点、多规格报价</td>
+          <td>区间→<code>product_fields</code>；SKU 价需 <code>options.need_sku_price=true</code></td>
+        </tr>
+        <tr>
+          <td><b style="color:var(--fact)">③ 营销/卖点料</b></td>
+          <td><code>selling_point</code>(卖点原料) · <code>sold</code>/<code>sold_l30d</code>/<code>global_sold</code>/<code>product_sales</code> · <code>sales_tags</code> · <code>gift</code> · <code>quality</code> · <code>first_image_detail</code> · <code>product_tags</code></td>
+          <td><b>卖点生成输入</b>、热卖背书、赠品促单、选图</td>
+          <td><code>selling_point</code>→<code>extension.selling_point</code>；销量需 <code>options.need_product_sale=true</code></td>
+        </tr>
+        <tr>
+          <td><b style="color:var(--fact)">④ SKU规格/库存</b></td>
+          <td><code>skus</code> <code>property_pairs</code> <code>skcs</code> · <code>sku_quantity</code> <code>product_stock_status</code> <code>all_stock_status</code> · <code>bundle_ids</code> <code>combo_sub_skus</code></td>
+          <td>多规格讲解、避免讲断货品、套餐话术</td>
+          <td><code>skus</code>+<code>sku_fields</code>；库存需 <code>need_sku_ids</code>(+<code>need_stock_quantity</code>)</td>
+        </tr>
+        <tr>
+          <td><b style="color:var(--fact)">⑤ 物流/履约</b></td>
+          <td><code>dimension_v2</code> <code>weight_v2</code> <code>package_*</code> · <code>sale_modes</code> <code>is_pre_order</code>/<code>pre_order_type</code> <code>fulfillment_info</code> · <code>cod_status</code> · <code>shipping_insurance_type</code></td>
+          <td>大件/轻巧、现货/预售/即时达时效、货到付款、运费险</td>
+          <td><code>product_fields</code>（V2 经 i18n 单位换算）</td>
+        </tr>
+        <tr>
+          <td><b style="color:var(--fact)">⑥ 售后</b></td>
+          <td><code>warranty_period</code> <code>warranty_policy</code> · <code>manuals</code> <code>packing_list</code> · <code>purchase_limit_rules</code></td>
+          <td>保修安心话术、开箱含什么、避免超量承诺</td>
+          <td><code>product_fields</code>；限购需 <code>options.need_purchase_limit_rules</code></td>
+        </tr>
+        <tr>
+          <td><b style="color:var(--fact)">⑦ 合规/资质</b></td>
+          <td><code>qualification_info</code> <code>product_qualifications</code> · <code>manufacturer_info_v2</code> <code>rp</code> <code>epr</code> · <code>hazmat</code> · <code>age_limit</code> · <code>gtin</code></td>
+          <td><b>功效/认证话术合规依据</b>、未成年带货红线(age_limit)</td>
+          <td><code>product_fields</code>；制造商/责任人需对应 <code>options.need_*</code></td>
+        </tr>
+        <tr>
+          <td><b style="color:var(--fact)">⑧ 状态/业务标识</b></td>
+          <td><code>product_status</code> <code>regional_product_status</code> · <code>biz_type</code> <code>sale_type</code> <code>platform</code> <code>product_source</code> · <code>sale_region</code>/<code>salable_regions</code> · <code>first_live_time</code></td>
+          <td>过滤不可售品、决定可取字段差异、"新品"话术</td>
+          <td>状态需 <code>options.need_product_status</code>（受 <code>region</code>）</td>
+        </tr>
+      </table>
+      <div class="alert" style="background:#eff6ff;border-color:#93c5fd">
+        <b style="color:var(--fact)">默认基础包（所有品类必取）：</b>
+        <code>name</code> · <code>images</code> · <code>category_detail</code> · <code>min_sale_price</code>/<code>max_sale_price</code> · <code>product_status</code> · <code>sale_region</code>。
+        其余按品类侧重叠加（美妆→成分/功效/资质；服饰→颜色尺寸/size_chart；家居家电→规格/尺寸重量/保修…）。
+        <br><b style="color:#c2410c">⚠️ 价格口径红线：</b>本 API 仅<b>原价</b>；活动价/营销价属营销中心（另接），脚本涉及促销价须另接营销域，规避误导价格。
+      </div>
+
+      <div class="alert">
+        <b>⚠️ 冲突与合规校验（必做）：</b>信息2（商家说"祛斑神器"）可能与信息1 ⑦合规资质域（<code>qualification_info</code> 无功效认证）冲突。
+        流程：<code>商家录入卖点 → 过【信息1 事实域 + ⑦资质域】校验 → 采纳 / 降级 / 拦截</code>。功效、价格类卖点必须有信息1 字段支撑，规避误导功效/价格红线。
+      </div>
+
+      <h3>扩展输入位（本期留位，不实现）</h3>
+      <div class="cards">
+        <div class="card future"><h4><span class="pill future">后续</span> 记忆域 / 历史</h4><ul><li>同 shop×avatar 过往高转化卖点/排品（V4 记忆系统）</li></ul></div>
+        <div class="card future"><h4><span class="pill future">后续</span> 品类知识 / 竞品</h4><ul><li>差异化亮点生成所需的品类基线与竞品对照</li></ul></div>
+      </div>
+    </section>
+
+    <!-- ===================== §2 ===================== -->
+    <section id="step2" data-ann-group="2-生成">
+      <h2><span class="num">2</span> 生成 Pipeline · 有依赖的 DAG</h2>
+      <p class="sub-desc">产出不是并列项，而是有先后依赖的有向图。点击节点查看该模块的「五件套」（输入 / 处理 / 输出 / 依赖 / provenance）。</p>
+
+      <div class="dag">
+        <div class="dag-row">
+          <div class="node active" data-mod="sort"><div class="n-step">①</div><div class="n-name">商品排序</div></div>
+          <div class="arrow">→</div>
+          <div class="node" data-mod="sp"><div class="n-step">②</div><div class="n-name">卖点池生成</div></div>
+          <div class="arrow">→</div>
+          <div class="node key" data-mod="match"><div class="n-step">③ 易漏</div><div class="n-name">卖点×clip 匹配</div></div>
+          <div class="arrow">→</div>
+          <div class="node" data-mod="script"><div class="n-step">④</div><div class="n-name">短卖点脚本</div></div>
+          <div class="arrow">→</div>
+          <div class="node" data-mod="copy"><div class="n-step">⑤</div><div class="n-name">专场文案</div></div>
+          <div class="arrow">→</div>
+          <div class="node assemble" data-mod="assemble"><div class="n-step">⑥ 装配</div><div class="n-name">剧本（多轨JSON）</div></div>
+        </div>
+        <p class="dag-hint">悬停节点高亮依赖路径：<b class="u">蓝色虚线=上游(依赖)</b> · <b class="d">绿色虚线=下游(被依赖)</b> · 黑实线=当前；点击节点展开「五件套」。</p>
+
+        <!-- module details (skeleton: 五件套统一结构) -->
+        <div class="module show" id="mod-sort">
+          <h4>① 商品排序</h4>
+          <div class="mgrid">
+            <div class="mbox io"><div class="lbl">输入</div><div class="v">动销商品集 + <b>信息1</b>：②价格(<code>min/max_sale_price</code>)、④库存(<code>product_stock_status</code>)、③销量(<code>product_sales</code>/<code>sales_tags</code>)、⑧首发(<code>first_live_time</code>) + 商家备注</div></div>
+            <div class="mbox proc"><div class="lbl">处理</div><div class="v"><span class="tagm rule">规则</span>加权打分 + <span class="tagm model">模型</span>CTR/CVR 预估微调 + <span class="tagm llm">LLM</span><b>仅做节奏微调</b>（开场强品/中段铺量/尾部逼单），<b>非纯生成排序</b></div></div>
+            <div class="mbox out"><div class="lbl">输出</div><div class="v"><code>[{product_id, rank, time_slot, score, reasons[]}]</code></div></div>
+            <div class="mbox dep"><div class="lbl">依赖</div><div class="v">信息1（价格/库存/销量）+ 信息2 + [记忆域：历史高转化排品]</div></div>
+            <div class="mbox prov"><div class="lbl">provenance · 排序口径</div><div class="v">记录各信号<b>得分+权重</b>：转化潜力(销量/CTR预估) · 价格带分布 · 库存深度 · 新品加权 · 毛利(若可得) · 商家指定置顶。每品输出 <code>reasons[]</code> 可溯源</div></div>
+          </div>
+        </div>
+        <div class="module" id="mod-sp">
+          <h4>② 卖点池生成（链路A · 与测评解耦）</h4>
+          <div class="mgrid">
+            <div class="mbox io"><div class="lbl">输入</div><div class="v"><b>信息1</b>：③<code>selling_point</code> + ①<code>product_properties</code>/<code>sale_properties</code>/<code>category_detail</code> + ⑥<code>warranty_*</code> + ⑦<code>qualification_info</code>；<b>信息2</b> 商家卖点(校验后)</div></div>
+            <div class="mbox proc"><div class="lbl">处理</div><div class="v"><span class="tagm llm">LLM</span>按<b>品类全覆盖</b>逐维度产出短卖点（单点短表达）；痛点/场景/差异化亮点在此由 LLM 推理生成（生成域）</div></div>
+            <div class="mbox out"><div class="lbl">输出</div><div class="v">卖点池 <code>SellingPoint[]</code>（每条带 <code>category_dim</code> + <code>evidence[]</code>，结构见 §4）</div></div>
+            <div class="mbox dep"><div class="lbl">依赖</div><div class="v">①品序；品类卖点侧重配置表（按品类裁剪维度）</div></div>
+            <div class="mbox prov"><div class="lbl">provenance</div><div class="v">每条卖点 <code>evidence[]</code> → 信息1 字段 / 信息2 录入 / 信息3 clip</div></div>
+          </div>
+        </div>
+        <div class="module" id="mod-match">
+          <h4>③ 卖点 × clip 匹配 <span class="todo">核心一环</span></h4>
+          <div class="mgrid">
+            <div class="mbox io"><div class="lbl">输入</div><div class="v">②卖点池 + <b>信息3</b> Clip Bank（<code>visual_zh</code>/<code>tags</code>/<code>clip_type</code>/<code>highlight</code>/<code>asr_lang</code>）+ 信息1 ①<code>images</code>/<code>video</code>(兜底)</div></div>
+            <div class="mbox proc"><div class="lbl">处理 · 算法倾向</div><div class="v"><span class="tagm model">多模态语义匹配为主</span>：卖点 text embedding × clip(visual+tags) embedding 余弦相似 → 基础分；<span class="tagm rule">规则加权</span>：<code>clip_type=strong</code>↑、<code>highlight=true</code>↑、<code>asr_lang</code> 与 <code>shared_context.language</code> 一致↑、时长适配↑</div></div>
+            <div class="mbox out"><div class="lbl">输出</div><div class="v"><code>{sp_id → {clip_id, match_score(0-100), layer:foreground|background}}</code></div></div>
+            <div class="mbox dep"><div class="lbl">依赖 · 阈值兜底</div><div class="v">②卖点池；<code>match_score≥阈值(如70)</code>采纳，否则<b>兜底</b>用商品主图/白底图(信息1①)；一卖点可配多候选 clip</div></div>
+            <div class="mbox prov"><div class="lbl">provenance</div><div class="v">match_score + Top-N 候选 clip 列表 + 命中规则项</div></div>
+          </div>
+        </div>
+        <div class="module" id="mod-script">
+          <h4>④ 短卖点脚本（卖点→口播话术）</h4>
+          <div class="mgrid">
+            <div class="mbox io"><div class="lbl">输入</div><div class="v">卖点（含支撑事实）+ 人设/语言 + 痛点/场景(生成)</div></div>
+            <div class="mbox proc"><div class="lbl">处理</div><div class="v"><span class="tagm llm">LLM</span>生成口播；<b>时长由口播 TTS 驱动</b></div></div>
+            <div class="mbox out"><div class="lbl">输出</div><div class="v">speech 原子：hook/body/cta + text</div></div>
+            <div class="mbox dep"><div class="lbl">依赖</div><div class="v">②卖点池；shared_context.language(en/es)</div></div>
+            <div class="mbox prov"><div class="lbl">provenance</div><div class="v">脚本→卖点→事实链路</div></div>
+          </div>
+        </div>
+        <div class="module" id="mod-copy">
+          <h4>⑤ 专场文案（场次级）</h4>
+          <div class="mgrid">
+            <div class="mbox io"><div class="lbl">输入</div><div class="v">①整场品序 + 主题/活动(信息2) + 人设/语言(<code>shared_context</code>) + 信息1 ③<code>gift</code>/<code>sales_tags</code></div></div>
+            <div class="mbox proc"><div class="lbl">处理</div><div class="v"><span class="tagm llm">LLM</span>生成开场/串场/逼单/结尾，承接整场节奏</div></div>
+            <div class="mbox out"><div class="lbl">输出</div><div class="v">场次级文案块 <code>{segment, text, target_slot}</code></div></div>
+            <div class="mbox dep"><div class="lbl">依赖</div><div class="v">①品序；④脚本（保证口径一致）</div></div>
+            <div class="mbox prov"><div class="lbl">provenance</div><div class="v">文案块 → 引用的品序/活动/赠品事实</div></div>
+          </div>
+        </div>
+        <div class="module" id="mod-assemble">
+          <h4>⑥ 剧本装配（直播大脑 JSON · 多轨时间轴）</h4>
+          <div class="mgrid">
+            <div class="mbox io"><div class="lbl">输入</div><div class="v">②③④⑤ 全部产出 + clips + overlay 元素</div></div>
+            <div class="mbox proc"><div class="lbl">处理</div><div class="v">按绝对时间轴编排 6 条轨道（NLE 式叠加）</div></div>
+            <div class="mbox out"><div class="lbl">输出</div><div class="v">直播大脑 JSON（timeline.tracks + render_contract）</div></div>
+            <div class="mbox dep"><div class="lbl">依赖</div><div class="v">上游全部；核心契约见 §4</div></div>
+            <div class="mbox prov"><div class="lbl">provenance</div><div class="v">每原子带 provenance_id（track + mode）</div></div>
+          </div>
+
+          <div class="tl">
+            <div style="margin-bottom:8px;color:#94a3b8;font-weight:700">同一时间轴 · 多轨并发叠加（mini 示意）</div>
+            <div class="track"><span class="tname">speech</span><span class="lane"><span class="blk" style="left:2%;width:30%;background:#059669">hook</span><span class="blk" style="left:34%;width:40%;background:#10b981">body</span><span class="blk" style="left:76%;width:22%;background:#34d399">cta</span></span></div>
+            <div class="track"><span class="tname">visual</span><span class="lane"><span class="blk" style="left:2%;width:36%;background:#7c3aed">clip#1 fg</span><span class="blk" style="left:40%;width:58%;background:#8b5cf6">clip#2 fg</span></span></div>
+            <div class="track"><span class="tname">operation</span><span class="lane"><span class="blk" style="left:50%;width:30%;background:#ea580c">price_tag</span></span></div>
+            <div class="track"><span class="tname">offscreen</span><span class="lane"><span class="blk" style="left:70%;width:14%;background:#0ea5e9">sfx</span></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== §3 ===================== -->
+    <section id="step3" data-ann-group="3-测评">
+      <h2><span class="num">3</span> 测评闭环 · 双层</h2>
+      <p class="sub-desc">测评不是一次性打分，而是「生成前门禁 + 上线后归因」双层，结果回流迭代 prompt 形成闭环。</p>
+
+      <div class="eval-layers">
+        <div class="eval-card">
+          <h4 style="margin:0 0 6px"><span class="pill eval">前</span> 生成前门禁（pre-flight）</h4>
+          <p style="margin:0;font-size:13px;color:var(--ink2)">出稿即测：脚本质量分（脚本测评标准2.0）+ 合规左移校验 → <b>不达标不放行</b>。</p>
+        </div>
+        <div class="eval-loop">↓ &nbsp; ↑ ↺</div>
+        <div class="eval-card">
+          <h4 style="margin:0 0 6px"><span class="pill eval">后</span> 上线后归因（post-hoc）</h4>
+          <p style="margin:0;font-size:13px;color:var(--ink2)">直播中/后：分钟级双视角归因、转化回流、<b>商家保存稿 vs 平台初稿 diff</b>（平台侧分析、商家无感）→ 回写迭代 prompt。</p>
+        </div>
+      </div>
+
+      <div class="alert eval">
+        <b>测评对象分层（粒度不同别混）：</b>卖点 / 脚本 / 剧本三层各自评，与生成链路解耦。
+      </div>
+      <table>
+        <tr><th style="width:120px">测评对象</th><th style="width:90px">层</th><th>测评维度（定稿）</th></tr>
+        <tr>
+          <td><b>卖点</b><br>（链路B）</td><td>生成前</td>
+          <td>
+            <b>① 品类覆盖度</b>：是否覆盖该品类应讲维度（功效/材质/场景…）·
+            <b>② 事实准确性</b>：是否有 <code>evidence[]</code> 支撑、与信息1 一致 ·
+            <b>③ 合规性</b>：功效/价格是否越界（资质域校验）·
+            <b>④ 表达质量</b>：短、口语、单点聚焦 ·
+            <b>⑤ 去重/差异度</b>：卖点间不重复
+          </td>
+        </tr>
+        <tr>
+          <td><b>脚本</b><br>（口播话术）</td><td>生成前</td>
+          <td>
+            复用 <b>脚本测评标准2.0</b>（V2 基线·第六部分）：相关性 / 卖点还原 / 流畅自然 / 合规 / 行动引导（CTA）；
+            叠加 <b>TTS 时长适配</b>（与 scene 时长匹配）·语言一致性（<code>asr_lang</code> vs <code>language</code>）
+          </td>
+        </tr>
+        <tr>
+          <td><b>剧本</b><br>（整体）</td><td>前 + 后</td>
+          <td>
+            <b>前</b>：结构完整(品/scene/轨齐全) · 时间轴合法(原子 <code>[start,end]</code> 不越界、z-order/混音契约可渲染) · 卖点↔clip 匹配率 ·
+            <b>后</b>：分钟级转化/互动效果 · 保存稿 diff 偏离度
+          </td>
+        </tr>
+      </table>
+    </section>
+
+    <!-- ===================== §4 ===================== -->
+    <section id="contract" data-ann-group="4-契约">
+      <h2><span class="num">4</span> 数据契约（算法 &amp; 研发对齐字段）</h2>
+      <p class="sub-desc">关键对象的 JSON 契约。下方为<b>真实样例</b>（信息1 字段集 / Clip Bank 实样 / 直播大脑 JSON 契约）。</p>
+
+      <details class="contract">
+        <summary>① 商品基础域 · 脚本生产最小字段集 <span class="src">来源：商品基础域对外API文档.md</span></summary>
+<pre><span class="c">// MGetProductMeta 请求：按需取，勿传 all</span>
+{
+  <span class="k">"product_ids"</span>: [<span class="n">123456789</span>],
+  <span class="k">"product_fields"</span>: [
+    <span class="s">"name"</span>, <span class="s">"images"</span>, <span class="s">"video"</span>, <span class="s">"category_detail"</span>,
+    <span class="s">"product_properties"</span>, <span class="s">"sale_properties"</span>,
+    <span class="s">"min_sale_price"</span>, <span class="s">"max_sale_price"</span>,
+    <span class="s">"selling_point"</span>, <span class="s">"sales_tags"</span>, <span class="s">"gift"</span>,
+    <span class="s">"dimension_v2"</span>, <span class="s">"weight_v2"</span>, <span class="s">"sale_modes"</span>, <span class="s">"cod_status"</span>,
+    <span class="s">"warranty_period"</span>, <span class="s">"warranty_policy"</span>, <span class="s">"manuals"</span>,
+    <span class="s">"qualification_info"</span>, <span class="s">"age_limit"</span>,
+    <span class="s">"product_status"</span>, <span class="s">"sale_region"</span>
+  ],
+  <span class="k">"locale"</span>: <span class="s">"en"</span>, <span class="k">"region"</span>: <span class="s">"US"</span>,
+  <span class="k">"options"</span>: { <span class="k">"need_product_sale"</span>: <span class="n">true</span> }
+}
+<span class="c">// 注：价格仅原价；活动价/营销价走营销中心（另接）</span></pre>
+      </details>
+
+      <details class="contract">
+        <summary>② Clip Bank · 视频分镜实样（信息3 · method2_uyv_29s）<span class="src">来源：demo-assets/clip-bank-samples</span></summary>
+<pre>{
+  <span class="k">"summary"</span>: { <span class="k">"main_product_guess_zh"</span>: <span class="s">"DIY串珠套装（含收纳盒）"</span>, <span class="k">"shot_count"</span>: <span class="n">3</span> },
+  <span class="k">"clips"</span>: [
+    {
+      <span class="k">"clip_index"</span>: <span class="n">2</span>, <span class="k">"start_sec"</span>: <span class="n">5</span>, <span class="k">"end_sec"</span>: <span class="n">20</span>,
+      <span class="k">"clip_type"</span>: <span class="s">"strong"</span>,
+      <span class="k">"visual_zh"</span>: <span class="s">"用小杯勺舀取珠子装入收纳盒，含ASMR音效"</span>,
+      <span class="k">"tags"</span>: [<span class="s">"DIY"</span>, <span class="s">"过程展示"</span>, <span class="s">"ASMR"</span>],
+      <span class="k">"recommend_use"</span>: <span class="s">"foreground"</span>,
+      <span class="k">"match_score"</span>: <span class="n">95</span>, <span class="k">"highlight"</span>: <span class="n">true</span>,
+      <span class="k">"visual_layer"</span>: <span class="s">"foreground"</span>,
+      <span class="k">"asr"</span>: <span class="n">null</span>, <span class="k">"asr_lang"</span>: <span class="n">null</span>
+    }
+  ]
+}</pre>
+      </details>
+
+      <details class="contract">
+        <summary>③ 剧本 · 直播大脑 JSON 多轨时间轴契约（⑥ 装配产物）<span class="src">来源：V3平台端方案 §3</span></summary>
+<pre>{
+  <span class="k">"timeline"</span>: {
+    <span class="k">"total_duration_sec"</span>: <span class="n">0</span>,  <span class="c">// 由各 Scene TTS 时长累加驱动</span>
+    <span class="k">"products"</span>: [ { <span class="k">"product_id"</span>:<span class="s">"..."</span>, <span class="k">"start_sec"</span>:<span class="n">0</span>, <span class="k">"end_sec"</span>:<span class="n">0</span>,
+                  <span class="k">"scenes"</span>:[ { <span class="k">"scene_id"</span>:<span class="s">"..."</span>, <span class="k">"start_sec"</span>:<span class="n">0</span>, <span class="k">"end_sec"</span>:<span class="n">0</span> } ] } ],
+    <span class="k">"tracks"</span>: {  <span class="c">// 每轨=独立泳道；原子带显式[start,end]，可重叠</span>
+      <span class="k">"speech"</span>:      [ { <span class="k">"atom_id"</span>,<span class="k">"scene_id"</span>,<span class="k">"start_sec"</span>,<span class="k">"end_sec"</span>,<span class="k">"segment"</span>:<span class="s">"hook|body|cta"</span>,<span class="k">"text"</span> } ],
+      <span class="k">"visual"</span>:      [ { <span class="k">"atom_id"</span>,<span class="k">"start_sec"</span>,<span class="k">"end_sec"</span>,<span class="k">"layer"</span>:<span class="s">"none|foreground|background"</span>,<span class="k">"clip_id"</span>,<span class="k">"avatar_pos"</span> } ],
+      <span class="k">"interaction"</span>: [ { <span class="k">"atom_id"</span>,<span class="k">"start_sec"</span>,<span class="k">"end_sec"</span>,<span class="k">"scope"</span>:<span class="s">"live|product"</span>,<span class="k">"type"</span>:<span class="s">"comment|qa"</span> } ],
+      <span class="k">"operation"</span>:   [ { <span class="k">"atom_id"</span>,<span class="k">"start_sec"</span>,<span class="k">"end_sec"</span>,<span class="k">"overlay"</span>:[{<span class="k">"type"</span>:<span class="s">"product_image|price_tag|flash_sale|countdown"</span>}] } ],
+      <span class="k">"voice"</span>:       [ { <span class="k">"atom_id"</span>,<span class="k">"start_sec"</span>,<span class="k">"end_sec"</span>,<span class="k">"voice_id"</span>,<span class="k">"rate"</span> } ],
+      <span class="k">"offscreen"</span>:   [ { <span class="k">"atom_id"</span>,<span class="k">"start_sec"</span>,<span class="k">"end_sec"</span>,<span class="k">"kind"</span>:<span class="s">"sfx|tts"</span>,<span class="k">"payload"</span>,<span class="k">"gain_db"</span>,<span class="k">"duck_bgm"</span> } ]
+    },
+    <span class="k">"render_contract"</span>: {
+      <span class="k">"visual_zorder"</span>:  [<span class="s">"operation_overlay"</span>,<span class="s">"foreground_sticker"</span>,<span class="s">"avatar"</span>,<span class="s">"scene_clip"</span>,<span class="s">"global_background"</span>],
+      <span class="k">"audio_priority"</span>: [<span class="s">"speech"</span>,<span class="s">"offscreen_tts"</span>,<span class="s">"sfx_bell"</span>,<span class="s">"bgm"</span>],
+      <span class="k">"ducking"</span>: <span class="s">"higher-priority active → attenuate lower"</span>
+    }
+  }
+}</pre>
+      </details>
+
+      <details class="contract" open>
+        <summary>④ 卖点对象 SellingPoint（链路A 产出 · 定稿）<span class="src">②卖点池 → ③匹配 → ④脚本 共用</span></summary>
+<pre>{
+  <span class="k">"sp_id"</span>: <span class="s">"sp_001"</span>,
+  <span class="k">"product_id"</span>: <span class="s">"123456789"</span>,
+  <span class="k">"category_dim"</span>: <span class="s">"efficacy"</span>,        <span class="c">// 枚举: efficacy功效|ingredient成分|material材质|craft工艺</span>
+                                  <span class="c">//      |spec规格|scenario场景|price价格|logistics物流|warranty售后|gift赠品</span>
+  <span class="k">"title"</span>: <span class="s">"装得多，3层大容量收纳盒"</span>,  <span class="c">// 短卖点(口语、单点聚焦)</span>
+  <span class="k">"est_tts_sec"</span>: <span class="n">6</span>,                  <span class="c">// 预估口播时长(驱动 scene 时长)</span>
+  <span class="k">"priority"</span>: <span class="n">90</span>,                   <span class="c">// 卖点优先级(讲不讲、先后)</span>
+  <span class="k">"evidence"</span>: [                       <span class="c">// ★支撑事实引用(provenance / 合规依据)</span>
+    { <span class="k">"source"</span>: <span class="s">"product_api"</span>, <span class="k">"ref"</span>: <span class="s">"product_properties.capacity"</span> },
+    { <span class="k">"source"</span>: <span class="s">"merchant_input"</span>, <span class="k">"ref"</span>: <span class="s">"seller_sp#2"</span> }
+  ],
+  <span class="k">"compliance"</span>: { <span class="k">"status"</span>: <span class="s">"pass"</span>,        <span class="c">// pass|degraded|blocked</span>
+                   <span class="k">"checked_against"</span>: [<span class="s">"qualification_info"</span>] },
+  <span class="k">"match"</span>: { <span class="k">"clip_id"</span>: <span class="s">"method2_uyv_29s#2"</span>,  <span class="c">// ③匹配结果回填</span>
+              <span class="k">"match_score"</span>: <span class="n">95</span>, <span class="k">"layer"</span>: <span class="s">"foreground"</span>,
+              <span class="k">"candidates"</span>: [<span class="s">"...#3"</span>] }
+}</pre>
+      </details>
+
+      <details class="contract" open>
+        <summary>⑤ 测评结果对象 EvalResult（双层测评 · 定稿）<span class="src">前门禁 + 上线后归因</span></summary>
+<pre>{
+  <span class="k">"eval_id"</span>: <span class="s">"ev_001"</span>,
+  <span class="k">"target_type"</span>: <span class="s">"selling_point"</span>,    <span class="c">// selling_point|script|storyboard</span>
+  <span class="k">"target_id"</span>: <span class="s">"sp_001"</span>,
+  <span class="k">"phase"</span>: <span class="s">"preflight"</span>,            <span class="c">// preflight生成前门禁 | posthoc上线后归因</span>
+  <span class="k">"scores"</span>: {                       <span class="c">// 维度随 target_type 变(见 §3 测评维度表)</span>
+    <span class="k">"category_coverage"</span>: <span class="n">0.9</span>,
+    <span class="k">"fact_accuracy"</span>: <span class="n">1.0</span>,
+    <span class="k">"compliance"</span>: <span class="n">1.0</span>,
+    <span class="k">"expression"</span>: <span class="n">0.85</span>,
+    <span class="k">"diversity"</span>: <span class="n">0.8</span>
+  },
+  <span class="k">"pass"</span>: <span class="n">true</span>,                    <span class="c">// 门禁: 不达标不放行</span>
+  <span class="k">"issues"</span>: [ { <span class="k">"code"</span>: <span class="s">"weak_evidence"</span>, <span class="k">"detail"</span>: <span class="s">"..."</span> } ],
+  <span class="k">"suggestions"</span>: [<span class="s">"补充功效来源字段"</span>],
+  <span class="k">"evaluated_by"</span>: <span class="s">"eval_model_v1"</span>,   <span class="c">// 模型/规则版本，便于AB</span>
+  <span class="k">"ts"</span>: <span class="n">1750000000</span>,
+  <span class="k">"feedback_to_prompt"</span>: <span class="n">true</span>      <span class="c">// 是否回流迭代 prompt(闭环)</span>
+}</pre>
+      </details>
+    </section>
+
+    <!-- ===================== §5 ===================== -->
+    <section id="open" data-ann-group="5-开放问题">
+      <h2><span class="num">5</span> 开放问题 · 待算法 &amp; 研发拍板</h2>
+      <ul class="open-q">
+        <li><b>商品排序</b>：规则/模型/LLM 各占多少？排序信号口径（毛利/转化/库存权重）？</li>
+        <li><b>卖点×clip 匹配</b>：match_score 算法选型（语义向量 / 多模态模型）？阈值与兜底？</li>
+        <li><b>卖点测评维度</b>：覆盖度/准确性/合规 如何量化？与脚本测评2.0 的关系？</li>
+        <li><b>合规校验</b>：商家卖点校验是同步拦截还是异步降级？规则库来源？</li>
+        <li><b>provenance 粒度</b>：每原子溯源到字段级 vs 模块级？存储成本？</li>
+        <li><b>上线后归因</b>：分钟级归因数据源、保存稿 diff 的对齐算法？</li>
+      </ul>
+      <p class="foot">骨架 v0.1 · 待确认布局后填充模块细节与契约。数据样例来源：商品基础域对外API文档.md / demo-assets/clip-bank-samples / V3平台端内部工作台页面级方案.md。本稿为平台端内部对齐稿，商家无感。</p>
+    </section>
+  </main>
+</div>
+
+<script>
+  // DAG node → module detail toggle + hover 上下游高亮
+  (function(){
+    var row=document.querySelector('.dag-row');
+    var nodes=[].slice.call(document.querySelectorAll('.node'));
+    var arrows=[].slice.call(document.querySelectorAll('.dag-row .arrow'));
+    var mods=document.querySelectorAll('.module');
+    function clearHL(){row.classList.remove('hovering');nodes.forEach(function(x){x.classList.remove('up','down','hot')});arrows.forEach(function(a){a.classList.remove('up','down')});}
+    nodes.forEach(function(n,i){
+      n.addEventListener('click',function(){
+        nodes.forEach(function(x){x.classList.remove('active')});
+        mods.forEach(function(m){m.classList.remove('show')});
+        n.classList.add('active');
+        var t=document.getElementById('mod-'+n.dataset.mod);
+        if(t)t.classList.add('show');
+      });
+      n.addEventListener('mouseenter',function(){
+        row.classList.add('hovering');n.classList.add('hot');
+        nodes.forEach(function(x,j){if(j<i)x.classList.add('up');else if(j>i)x.classList.add('down');});
+        arrows.forEach(function(a,j){if(j<i)a.classList.add('up');else a.classList.add('down');});
+      });
+      n.addEventListener('mouseleave',clearHL);
+    });
+  })();
+  // nav active on scroll
+  (function(){
+    var links=[].slice.call(document.querySelectorAll('.nav a:not(.sub)'));
+    var secs=links.map(function(a){return document.querySelector(a.getAttribute('href'))}).filter(Boolean);
+    function onScroll(){
+      var y=window.scrollY+90,cur=null;
+      secs.forEach(function(s){if(s.offsetTop<=y)cur=s});
+      links.forEach(function(a){a.style.background=cur&&a.getAttribute('href')==='#'+cur.id?'#e0e7ff':''});
+    }
+    window.addEventListener('scroll',onScroll);onScroll();
+  })();
+</script>
+
+<!-- ===== 批注层（选中即批注 · localStorage · 导出 JSON/MD）===== -->
+<style>
+.ann-pop{position:absolute;z-index:80;background:#15201d;border-radius:9px;padding:9px;box-shadow:0 6px 18px rgba(0,0,0,.32);width:248px}
+.ann-trigger{position:absolute;z-index:85;background:#0E8C7F;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(14,140,127,.42);white-space:nowrap}
+.ann-pop textarea{width:100%;height:56px;border:none;border-radius:6px;padding:7px;font-size:12.5px;resize:vertical;font-family:inherit;box-sizing:border-box}
+.ann-pop .row{display:flex;gap:6px;margin-top:7px;justify-content:flex-end}
+.ann-pop button{border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer}
+.ann-pop .save{background:#0E8C7F;color:#fff}
+.ann-pop .cancel{background:#3a4a46;color:#cdd6d3}
+mark.cm{background:#fff3bf;border-bottom:2px solid #b8860b;cursor:pointer;border-radius:2px;padding:0 1px}
+#ann-fab{position:fixed;right:20px;bottom:20px;z-index:90;background:#0E8C7F;color:#fff;border:none;border-radius:26px;padding:11px 18px;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 5px 16px rgba(14,140,127,.42)}
+#ann-panel{position:fixed;right:20px;bottom:66px;z-index:90;width:368px;max-height:74vh;display:none;flex-direction:column;background:#fff;border:1px solid #e6e8e7;border-radius:13px;box-shadow:0 10px 34px rgba(0,0,0,.24);overflow:hidden;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+#ann-panel.open{display:flex}
+#ann-panel .hd{padding:11px 14px;border-bottom:1px solid #e6e8e7;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+#ann-panel .hd span{cursor:pointer;color:#6b6b6b}
+#ann-panel .acts{display:flex;gap:6px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid #e6e8e7}
+#ann-panel .acts button{border:1px solid #e6e8e7;background:#fff;border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;color:#0a6b61}
+#ann-list{overflow:auto;padding:4px 0}
+.ann-item{padding:9px 14px;border-bottom:1px solid #f0f2f2;font-size:12.5px}
+.ann-item .sec{color:#0a6b61;font-weight:800;font-size:11.5px;margin-bottom:2px}
+.ann-item .q{color:#7a7f7d;font-style:italic;margin:3px 0;border-left:2px solid #b8860b;padding-left:7px}
+.ann-item .c{color:#1f2421}
+.ann-item .mini{margin-top:5px;display:flex;gap:12px}
+.ann-item .mini a{color:#2b6cb0;cursor:pointer;font-size:11px;text-decoration:none}
+.ann-empty{padding:22px;text-align:center;color:#6b6b6b;font-size:12.5px;line-height:1.7}
+</style>
+<script>
+(function(){
+var ANN_KEY='ann::'+location.pathname;
+function get(){try{return JSON.parse(localStorage.getItem(ANN_KEY))||[];}catch(e){return[];}}
+function set(a){localStorage.setItem(ANN_KEY,JSON.stringify(a));}
+function uid(){return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function esc(s){return (s||'').replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function toast(m){var t=document.createElement('div');t.textContent=m;t.style.cssText='position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#15201d;color:#fff;padding:9px 16px;border-radius:8px;z-index:120;font-size:12.5px';document.body.appendChild(t);setTimeout(function(){t.remove();},1900);}
+function openPanel(o){document.getElementById('ann-panel').classList.toggle('open',o);}
+window.__annOpen=openPanel;
+function groupOf(node){var el=node&&node.nodeType===3?node.parentElement:node;var g=el&&el.closest?el.closest('[data-ann-group]'):null;return g?g.getAttribute('data-ann-group'):'';}
+function headingOf(node){var el=node&&node.nodeType===3?node.parentElement:node;if(!el)return '(顶部)';var scope=(el.closest&&el.closest('[data-ann-group]'))||document.body;var hs=[].slice.call(scope.querySelectorAll('h1,h2,h3,h4'));var res=null;for(var i=0;i<hs.length;i++){var p=el.compareDocumentPosition(hs[i]);if(p&Node.DOCUMENT_POSITION_PRECEDING)res=hs[i];else if(p&Node.DOCUMENT_POSITION_FOLLOWING)break;}return res?res.textContent.trim():'(顶部)';}
+function hl(range,id){try{var m=document.createElement('mark');m.className='cm';m.dataset.cid=id;range.surroundContents(m);m.title='点击查看评论';m.onclick=function(){openPanel(true);var el=document.querySelector('.ann-item[data-cid="'+id+'"]');if(el){el.scrollIntoView({block:'center'});el.style.background='#fff8e1';setTimeout(function(){el.style.background='';},1300);}};return true;}catch(e){return false;}}
+function reHl(quote,id){var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null),n;while(n=w.nextNode()){if(n.parentElement&&(n.parentElement.tagName==='MARK'||n.parentElement.closest('#ann-panel,.ann-pop,#ann-fab')))continue;var i=n.nodeValue.indexOf(quote);if(i>-1){var r=document.createRange();r.setStart(n,i);r.setEnd(n,i+quote.length);return hl(r,id);}}return false;}
+var pop,trig,curRange,curText;
+function hidePop(){if(pop){pop.remove();pop=null;}}
+function hideTrig(){if(trig){trig.remove();trig=null;}}
+document.addEventListener('mousedown',function(e){if(pop&&!pop.contains(e.target))hidePop();if(trig&&!trig.contains(e.target))hideTrig();});
+document.addEventListener('mouseup',function(e){
+  if(e.target.closest&&(e.target.closest('.ann-pop')||e.target.closest('.ann-trigger')||e.target.closest('#ann-panel')||e.target.closest('#ann-fab')))return;
+  setTimeout(function(){var s=window.getSelection();var t=s?s.toString().trim():'';if(t.length<2||!s||!s.rangeCount){hideTrig();return;}curText=t;curRange=s.getRangeAt(0).cloneRange();var r=s.getRangeAt(0).getBoundingClientRect();showTrigger(r.right+scrollX,r.bottom+scrollY);},1);
+});
+function showTrigger(x,y){hidePop();hideTrig();trig=document.createElement('button');trig.className='ann-trigger';trig.type='button';trig.textContent='✍️ 批注';trig.style.left=Math.max(8,Math.min(x,scrollX+innerWidth-96))+'px';trig.style.top=(y+6)+'px';trig.addEventListener('mousedown',function(ev){ev.preventDefault();ev.stopPropagation();});trig.onclick=function(ev){ev.stopPropagation();var rx=parseFloat(trig.style.left),ry=parseFloat(trig.style.top);hideTrig();showPop(rx,ry);};document.body.appendChild(trig);}
+function showPop(x,y){hidePop();pop=document.createElement('div');pop.className='ann-pop';pop.style.left=Math.max(8,Math.min(x,scrollX+innerWidth-258))+'px';pop.style.top=(y+6)+'px';pop.innerHTML='<textarea placeholder="对所选文字的修改建议…"></textarea><div class="row"><button class="cancel">取消</button><button class="save">保存评论</button></div>';document.body.appendChild(pop);var ta=pop.querySelector('textarea');ta.focus();pop.querySelector('.cancel').onclick=hidePop;pop.querySelector('.save').onclick=function(){var c=ta.value.trim();if(!c){ta.focus();return;}save(c);hidePop();};ta.addEventListener('keydown',function(ev){if((ev.metaKey||ev.ctrlKey)&&ev.key==='Enter'){var c=ta.value.trim();if(c){save(c);hidePop();}}});}
+function save(comment){var id=uid();var ok=hl(curRange,id);var a=get();a.push({id:id,group:groupOf(curRange.startContainer),section:headingOf(curRange.startContainer),quote:curText,comment:comment,ts:Date.now(),hl:ok});set(a);render();openPanel(true);toast('已记录评论');}
+function goto(it){var m=document.querySelector('mark.cm[data-cid="'+it.id+'"]');if(m){m.scrollIntoView({block:'center',behavior:'smooth'});m.style.outline='2px solid #c0392b';setTimeout(function(){m.style.outline='';},1500);}}
+function del(id){set(get().filter(function(x){return x.id!==id;}));var m=document.querySelector('mark.cm[data-cid="'+id+'"]');if(m){var p=m.parentNode;while(m.firstChild)p.insertBefore(m.firstChild,m);p.removeChild(m);if(p.normalize)p.normalize();}render();}
+function render(){var list=document.getElementById('ann-list'),a=get();document.getElementById('ann-count').textContent=a.length;if(!a.length){list.innerHTML='<div class="ann-empty">还没有评论。<br>在正文里<strong>选中任意文字</strong>即可写修改建议。</div>';return;}list.innerHTML='';a.forEach(function(it){var d=document.createElement('div');d.className='ann-item';d.dataset.cid=it.id;var tag=it.group?'['+esc(it.group)+'] ':'';d.innerHTML='<div class="sec">'+tag+esc(it.section)+'</div><div class="q">“'+esc(it.quote)+'”</div><div class="c">'+esc(it.comment)+'</div><div class="mini"><a class="go">定位</a><a class="del">删除</a></div>';d.querySelector('.go').onclick=function(){goto(it);};d.querySelector('.del').onclick=function(){del(it.id);};list.appendChild(d);});}
+function toMD(){var a=get();if(!a.length)return '（暂无评论）';var g={};a.forEach(function(it){var k=(it.group?it.group+' ｜ ':'')+it.section;(g[k]=g[k]||[]).push(it);});var o='# 批注汇总（'+a.length+' 条）\n\n';Object.keys(g).forEach(function(k){o+='## '+k+'\n';g[k].forEach(function(it){o+='- 引文：“'+it.quote+'”\n  - 建议：'+it.comment+'\n';});o+='\n';});return o;}
+function copyMD(){var t=toMD();if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){toast('已复制 Markdown');},function(){prompt('复制以下内容：',t);});}else{prompt('复制以下内容：',t);}}
+function expJSON(){var b=new Blob([JSON.stringify(get(),null,2)],{type:'application/json'});var u=URL.createObjectURL(b);var x=document.createElement('a');x.href=u;x.download='批注.json';x.click();URL.revokeObjectURL(u);}
+function clr(){if(confirm('清空所有评论？')){set([]);document.querySelectorAll('mark.cm').forEach(function(m){var p=m.parentNode;while(m.firstChild)p.insertBefore(m.firstChild,m);p.removeChild(m);});render();}}
+function init(){var fab=document.createElement('button');fab.id='ann-fab';fab.innerHTML='💬 评论 <span id="ann-count">0</span>';fab.onclick=function(){openPanel(!document.getElementById('ann-panel').classList.contains('open'));};document.body.appendChild(fab);var p=document.createElement('div');p.id='ann-panel';p.innerHTML='<div class="hd">批注 / 修改建议<span>✕</span></div><div class="acts"><button id="b-md">复制 Markdown</button><button id="b-json">导出 JSON</button><button id="b-clr">清空</button></div><div id="ann-list"></div>';document.body.appendChild(p);p.querySelector('.hd span').onclick=function(){openPanel(false);};document.getElementById('b-md').onclick=copyMD;document.getElementById('b-json').onclick=expJSON;document.getElementById('b-clr').onclick=clr;get().forEach(function(it){if(it.hl!==false)reHl(it.quote,it.id);});render();}
+if(document.readyState!=='loading')init();else window.addEventListener('DOMContentLoaded',init);
+})();
+</script>
+
+</body>
+</html>

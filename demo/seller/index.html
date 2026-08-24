@@ -1,0 +1,1949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI LIVE · Seller Workbench (Demo)</title>
+<link rel="stylesheet" href="../shared/v2-theme.css" />
+</head>
+<body>
+<div class="topnav">
+  <span class="logo">TikTok <b>Shop</b></span>
+  <span class="crumb">LIVE Manager · AI LIVE</span>
+  <span class="spacer"></span>
+  <button class="go-live">Go live now</button>
+  <span class="nav-right"><span class="pill- env">DEMO</span>🔔 &nbsp; 123@byte.com &nbsp; English ▾</span>
+</div>
+
+<div class="shell">
+  <div class="sidenav">
+    <div class="grp">Home</div>
+    <div class="grp">LIVE tools</div>
+    <div class="item">LIVE events</div>
+    <div class="item">LIVE console</div>
+    <div class="item">LIVE product sets</div>
+    <div class="item active">✦ AI LIVE</div>
+    <div class="grp">Analytics</div>
+    <div class="item">Shop academy</div>
+    <a class="item" href="../index.html" style="margin-top:16px;color:#0a8a8a">← Demo 入口</a>
+  </div>
+
+  <div class="main" data-ann-group="商家端">
+    <div class="between" style="margin-bottom:6px">
+      <div>
+        <div class="h-title">Create AI LIVE</div>
+        <div class="sub-title">Shop: <b id="shopName"></b> · Handle <b id="shopHandle"></b></div>
+      </div>
+      <span class="tag draft">Draft</span>
+    </div>
+
+    <div class="stepbar" id="stepbar"></div>
+    <div class="note" id="audNote"></div>
+    <div id="stage"></div>
+  </div>
+</div>
+
+<div class="actionbar" id="actionbar"></div>
+
+<script src="../shared/data.js"></script>
+<script src="../shared/app.js"></script>
+<script>
+const { $, el, esc, bg, modal, confirmBox, renderTimeline, renderPreview916 } = UI;
+const D = DEMO;
+$("#shopName").textContent = D.SHOP.shop_name;
+$("#shopHandle").textContent = "@" + D.SHOP.handle;
+
+// 商家视角文案：把内部类型码翻成人话（颜色/样式仍沿用原 class，不变交互）
+const CLIP_TYPE_LABEL = { strong:"强卖点", bg:"一般展示", risk:"不建议用" };
+const USE_LABEL = { foreground:"全屏展示", background:"作背景", none:"不建议用" };
+const clipTypeLabel = (t) => CLIP_TYPE_LABEL[t] || t;
+const useLabel = (u) => USE_LABEL[u] || u;
+const CLIP_SOURCE = { local_upload:"本地上传", tiktok_post:"已发布视频", live_replay:"直播录屏" };
+const CLIP_SOURCE_TIP = {
+  local_upload:"商家上传的视频，经解析后拆成片段",
+  tiktok_post:"商家账号已发布短视频，经解析后拆成片段",
+  live_replay:"商家历史直播录屏，经解析后拆成片段",
+};
+function clipSourceMeta(c){
+  const k = c.clip_source || (c._bank && c._bank.src_kind) || (c._uploaded ? "local_upload" : "local_upload");
+  return { kind:k, short:CLIP_SOURCE[k]||"本地上传", tip:CLIP_SOURCE_TIP[k]||"" };
+}
+const TRANSLATE_PROXY = "http://localhost:8789/translate-script";
+const GENERATE_PROXY = "http://localhost:8789/generate-script";
+// 视频规格展示：分辨率 / 帧率 / 编码 / 大小（缺省给可发布建议值）
+const clipSpec = (c) => {
+  const res = c.resolution || "1080×1920";
+  const fps = (c.fps || 30) + "fps";
+  const codec = c.codec || "H.264";
+  const size = (c.size_mb != null) ? (c.size_mb + "MB") : "—";
+  return `${res} · ${fps} · ${codec} · ${size}`;
+};
+
+/* ===== 真实视频解析：调用 gemini-3-pro-preview-new（经本地 video_parse_proxy.py:8789 → AIDP ModelHub 网关） =====
+   prompt 取自 V3 老 Demo「直播脚本生成流程Demo.html」的 DEFAULT_VIDEO_PARSE_PROMPT_TEMPLATE。 */
+const PARSE_PROXY = "http://localhost:8789/parse-video";
+const PARSE_TOKEN = "live-script-video-parse-demo-token";
+const VIDEO_PARSE_PROMPT = `你是电商直播视频素材解析器。请把上传的视频解析成可供直播脚本调用的 Clip Bank。
+
+请输出合法 JSON，不要 Markdown，不要解释。最外层必须是对象，不能直接输出数组。
+
+结构：
+{"clips":[{"id":"clip_001","type":"strong|bg|risk","title":"简短标题","source_index":{{source_index}},"start_time_sec":0,"duration_sec":15,"duration":"15s","visual_content":"完整视觉内容","asr_content":"完整原始 ASR，无声填空字符串","selling_point":"对应卖点/泛展示/不推荐","layer":"foreground|background|disabled","relevance":0.0,"product_match_score":0.0,"match_reason":"匹配原因"}]}
+
+分类口径：判断这个 Clip 在直播脚本里能承担什么功能。
+- strong=强卖点素材：能直接支撑购买理由（功能/效果/价格/配件/优惠/保障/痛点解决/使用结果/对比，或 ASR 直接讲出与卖点匹配的购买理由）。
+- bg=泛展示素材：与商品/同品类/同场景相关但非强购买理由，适合背景/转场/铺垫/外观/包装/颜色/手持/氛围/补画面。能帮助理解商品、建立场景、增加真实感的，归 bg。
+- risk=不相关/不推荐：素材与当前商品/品类/场景都无法建立关系，或会误导脚本/暴露短板/违反禁讲（完全不同品类、竞品强露出、无法识别、质量差到不可用、主题跑题且画面无关）。
+
+画面层级 layer：
+- foreground：本段核心画面、需全屏（强卖点证明、关键演示、价格/套装/开箱重点、必须看清的操作细节）。
+- background：铺满背景画布、承担氛围/外观/场景/包装/颜色/弱卖点；泛展示优先 background。
+- disabled：只用于 risk。
+
+商品信息：
+{{product_info}}
+
+当前视频：
+{{video_info}}
+
+要求：
+1. 先判断视频整体是否匹配当前商品再切 Clip。
+2. Clip 数量按语义自动切分，不限数量，但每个 Clip 控制在 5-15 秒。
+3. start_time_sec 与 duration_sec 尽量准确；duration_sec ∈ [5,15]；超 15s 的语义段按镜头/口播停顿/卖点/动作拆多个；短于 5s 与相邻同语义合并。
+4. visual_content 与 asr_content 要完整，不摘要、不删减；无声则 asr_content 填空字符串。
+5. 不要因为弱卖点/只展示外观或包装/没有 ASR 就标 risk；这些通常是 bg。
+6. 仅当 product_match_score < 0.25，或确为完全无关/无法识别/竞品误导/违反禁讲时才 type=risk、layer=disabled、selling_point=不推荐。
+7. match_reason 说明为什么是 strong/bg/risk，以及为什么选 foreground/background/disabled。
+8. 所有字符串为单行 JSON 字符串，不含未转义换行。`;
+
+function readFileAsDataURL(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
+function buildParsePrompt(file, srcIdx){
+  const p = curProduct();
+  const productInfo = JSON.stringify({ product_id:p.id, title:p.name, ip:p.ip, price:p.price, category:p.cat, points:p.points, story:p.story }, null, 2);
+  const videoInfo = JSON.stringify({ source_index:srcIdx, file_name:file.name, mime_type:file.type||"video/mp4", size:file.size||0 }, null, 2);
+  return VIDEO_PARSE_PROMPT.replaceAll("{{source_index}}",String(srcIdx)).replaceAll("{{product_info}}",productInfo).replaceAll("{{video_info}}",videoInfo);
+}
+function parseExtractText(data){ const c=data&&data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content; if(typeof c==="string"&&c.trim())return c; if(Array.isArray(c))return c.map(x=>x.text||x.content||"").join("\n").trim(); return (data&&data.output_text)||""; }
+function parseJsonLoose(text){ let s=String(text).trim().replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/```$/i,"").trim(); try{return JSON.parse(s);}catch(e){ const a=s.indexOf("{"),b=s.lastIndexOf("}"); if(a>=0&&b>a){ try{return JSON.parse(s.slice(a,b+1));}catch(e2){} } throw e; } }
+// 用上传视频的真实帧做缩略图（9:16 cover）；blob: URL 勿设 crossOrigin
+const THUMB_PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="270" height="480"><rect fill="#eceff3" width="100%" height="100%"/><text x="50%" y="50%" text-anchor="middle" fill="#9ca3af" font-family="sans-serif" font-size="13">无预览</text></svg>');
+
+function isMostlyBlack(ctx, w, h){
+  try{
+    const img=ctx.getImageData(0, 0, w, h);
+    let dark=0, n=0;
+    for(let y=0; y<h; y+=10){
+      for(let x=0; x<w; x+=10){
+        const i=(y*w+x)*4;
+        const l=0.299*img.data[i]+0.587*img.data[i+1]+0.114*img.data[i+2];
+        if(l<22) dark++;
+        n++;
+      }
+    }
+    return n>0 && dark/n>0.78;
+  }catch(e){ return false; }
+}
+
+function drawVideoFrame(v, rejectBlack){
+  try{
+    const vw=v.videoWidth, vh=v.videoHeight;
+    if(!vw||!vh) return null;
+    const c=document.createElement("canvas"); c.width=270; c.height=480;
+    const ctx=c.getContext("2d");
+    const ar=c.width/c.height, va=vw/vh;
+    let sw=vw, sh=vh, sx=0, sy=0;
+    if(va>ar){ sw=vh*ar; sx=(vw-sw)/2; } else { sh=vw/ar; sy=(vh-sh)/2; }
+    ctx.drawImage(v, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    if(rejectBlack && isMostlyBlack(ctx, c.width, c.height)) return null;
+    return c.toDataURL("image/jpeg", 0.82);
+  }catch(e){ return null; }
+}
+
+function captureThumbsBatch(objectUrl, times, opts){
+  const rejectBlack=!!(opts&&opts.rejectBlack);
+  const list=(times||[]).map(t=>Math.max(0, Number(t)||0));
+  if(!list.length) return Promise.resolve([]);
+  return new Promise((resolve)=>{
+    const v=document.createElement("video");
+    v.muted=true; v.playsInline=true; v.preload="auto";
+    v.src=objectUrl;
+    const out=new Array(list.length).fill(null);
+    let idx=0, finished=false, started=false;
+    const cleanup=()=>{ try{ v.pause(); v.removeAttribute("src"); v.load(); }catch(e){} };
+    const finishAll=()=>{ if(finished) return; finished=true; cleanup(); resolve(out); };
+    const seekNext=()=>{
+      if(idx>=list.length){ finishAll(); return; }
+      const dur=v.duration;
+      let target=list[idx];
+      if(isFinite(dur)&&dur>0) target=Math.min(target, Math.max(0, dur-0.08));
+      const onSeeked=()=>{
+        v.removeEventListener("seeked", onSeeked);
+        out[idx]=drawVideoFrame(v, rejectBlack);
+        idx++;
+        seekNext();
+      };
+      v.addEventListener("seeked", onSeeked);
+      try{
+        if(Math.abs(v.currentTime-target)<0.02){ onSeeked(); return; }
+        v.currentTime=target;
+      }catch(e){
+        v.removeEventListener("seeked", onSeeked);
+        idx++;
+        seekNext();
+      }
+    };
+    const begin=()=>{ if(started) return; started=true; seekNext(); };
+    v.onloadeddata=begin;
+    v.onloadedmetadata=()=>{ if(v.readyState>=2) begin(); };
+    v.onerror=()=>finishAll();
+    setTimeout(finishAll, 15000 + list.length * 4000);
+  });
+}
+
+function captureThumb(objectUrl, t, rejectBlack){
+  return captureThumbsBatch(objectUrl, [t], { rejectBlack }).then(arr=>arr[0]||null);
+}
+
+async function captureBestThumb(objectUrl, durHint){
+  const dur=durHint || await readVideoDuration(objectUrl);
+  const maxT=Math.max(0.12, (dur||30)-0.08);
+  const times=[0.5, 1, 1.5, 2, 0.15, Math.min(3, dur*0.08), Math.min(5, dur*0.12)].filter(t=>t<=maxT);
+  const uniq=[...new Set(times.map(t=>Math.round(t*100)/100))];
+  const thumbs=await captureThumbsBatch(objectUrl, uniq, { rejectBlack:true });
+  const hit=thumbs.find(t=>t);
+  if(hit) return hit;
+  return captureThumb(objectUrl, Math.min(0.5, maxT), false);
+}
+function readVideoDuration(objectUrl){
+  return new Promise((res)=>{
+    const v=document.createElement("video"); v.preload="metadata"; v.muted=true; v.src=objectUrl;
+    v.onloadedmetadata=()=>res(Math.max(1, Math.round(v.duration)||30));
+    v.onerror=()=>res(30);
+    setTimeout(()=>res(30), 6000);
+  });
+}
+async function checkParseProxy(){
+  try{
+    const r = await fetch("http://localhost:8789/health", { method:"GET" });
+    if(!r.ok) return false;
+    const data = await r.json().catch(()=>({}));
+    return data.ok === true;
+  }catch(e){ return false; }
+}
+async function normalizeParsedClips(parsed, srcIdx, objectUrl, productId){
+  const list = Array.isArray(parsed)? parsed : (parsed.clips||[]);
+  const pid = productId || curProduct().id;
+  const meta=[];
+  for(let i=0;i<list.length;i++){
+    const c=list[i]||{};
+    const ms = Math.round(Math.max(0,Math.min(1, Number(c.product_match_score)||0.5))*100);
+    let type = ["strong","bg","risk"].includes(c.type)? c.type : "bg";
+    if(ms<25) type="risk";
+    const start = Math.max(0, Number(c.start_time_sec)||0);
+    const rawDur = Math.max(1, Math.min(120, Number(c.duration_sec)|| (parseInt(c.duration)||8)));
+    const dur = type==="risk" ? rawDur : Math.max(30, rawDur);
+    const layer = c.layer==="foreground"?"foreground":(c.layer==="background"?"background":(type==="risk"?"none":"background"));
+    const reason = c.match_reason || (type==="strong"? D.REASON?.strong : type==="bg"? D.REASON?.bg : D.REASON?.risk) || "";
+    meta.push({ c, i, ms, type, start, dur, layer, reason, thumbAt: start + 0.12 });
+  }
+  const thumbs = await captureThumbsBatch(objectUrl, meta.map(m=>m.thumbAt));
+  const out = meta.map((m, ti)=>{
+    const { c, i, ms, type, start, dur, layer, reason } = m;
+    return {
+      clip_index: 900+S.uploadedClips.length+i, clip_id: c.id||("upload_"+String(i+1).padStart(3,"0")),
+      product_id: pid, source_index: srcIdx, start, end: start+dur, start_time_sec:start, duration_sec:dur,
+      clip_type: type, visual_zh: c.visual_content||c.title||"", visual_content: c.visual_content||c.title||"",
+      asr_content: c.asr_content||"（无人声）", selling_point: c.selling_point||(type==="risk"?"不推荐":type==="bg"?"泛展示":"对应卖点"),
+      tags: [c.title].filter(Boolean), highlight: ms>=90,
+      recommend_use: layer==="foreground"?"foreground":(layer==="background"?"background":"none"),
+      match_score: ms, product_match_score:+(ms/100).toFixed(2), relevance:+((Number(c.relevance)||ms/100).toFixed(2)),
+      match_reason: reason, visual_layer: layer, asr_lang:null,
+      thumbUrl: thumbs[ti] || THUMB_PLACEHOLDER, _uploaded:true,
+      clip_source:"local_upload", clip_source_label:"本地上传",
+    };
+  });
+  return out.sort((a,b)=>(b.match_score||0)-(a.match_score||0));
+}
+function platformPrefillSellingPoints(p){
+  if(p.liveInfo.sellingPoints.some(s=>s.key||s.value)) return false;
+  const drafts = (p.points||[]).slice(0,2).map((pt,i)=>({
+    id: newSpId(),
+    key: pt,
+    value: p.story ? (p.story.split("。")[0]||p.story).slice(0,120) : "",
+    _platformGenerated: true,
+  }));
+  if(!drafts.length){
+    drafts.push({ id:newSpId(), key:""+p.ip+" · 核心亮点", value:"", _platformGenerated:true });
+  }
+  p.liveInfo.sellingPoints = drafts;
+  saveLiveInfo(p);
+  S.platformPrefillShown = true;
+  return true;
+}
+
+// ---------------- 状态 ----------------
+let _sid = 0, _spid = 0;
+const newSpId = () => "sp_" + (++_spid);
+// Scene ↔ 卖点 1:1；script.parts=[{tag,text}] 商家端合并展示为带 tag 的整段话术
+const newScene = (title, method, sellingPointId) => ({
+  id:"sc"+(++_sid), title:title||("Scene "+(_sid)), sellingPointId:sellingPointId||null,
+  spKey:"", spValue:"", method:method||1, clip:null, bg:"Default", bgType:null, bgClip:null,
+  script:null, overlays:[],
+});
+const OVERLAY_TEMPLATES = [
+  { type:"product", label:"商品展示", scope:"scene" },
+  { type:"announce", label:"活动公告", scope:"scene" },
+  { type:"ship", label:"包邮", scope:"scene" },
+  { type:"aftersale", label:"售后保障", scope:"scene" },
+  { type:"logo", label:"店铺标识", scope:"global" },
+  { type:"sale", label:"全场满减", scope:"global" },
+];
+const S = {
+  step: 1,
+  liveName: "Gismow 小憨包 · 治愈陪伴专场",
+  market: "US",
+  language: "en",
+  avatar: null,
+  products: [],
+  mode: null,
+  scenes: [],
+  buildSceneIdx: 0,
+  expandedProduct: null,
+  globalOverlays: [
+    { id:"go1", type:"logo", label:"店铺标识", selected:true, img:"../../demo-assets/overlays/maas/logo.png", text:"", layout:{ leftPct:6, topPct:6, widthPct:26, scale:1 } },
+    { id:"go2", type:"sale", label:"全场满减", selected:false, text:"-$3 OFF", img:"../../demo-assets/overlays/maas/sale.png", layout:{ leftPct:6, topPct:18, widthPct:28, scale:1 } },
+  ],
+  storyIntent: "",
+  storyPlaybook: "",
+  uploadedClips: [],
+  wholeVideos: [],
+  clipFeedbacks: {},
+  buildSpSyncHint: false,
+  platformPrefillShown: false,
+  previewSel: null,
+  layout: { avatar:{ x:0, y:0, scale:1 } },
+};
+const CLIP_FEEDBACK_REASONS = ["拆段不对","和商品不匹配","标签不准","其他"];
+const CLIP_FB_LS_KEY = "demo_clip_feedbacks_v1";
+const LIVEINFO_LS_KEY = "demo_liveinfo_v1";
+let assetsQueryDraft = "";
+let assetsQueryActive = "";
+try { const _fb = localStorage.getItem(CLIP_FB_LS_KEY); if(_fb) S.clipFeedbacks = JSON.parse(_fb); } catch(e){}
+function loadLiveInfo(p){
+  try{
+    const all = JSON.parse(localStorage.getItem(LIVEINFO_LS_KEY)||"{}");
+    if(all[p.id]){
+      const li = ensureLiveInfo(p);
+      if(all[p.id].sellingPoints) li.sellingPoints = all[p.id].sellingPoints;
+      if(all[p.id].audience!=null) li.audience = all[p.id].audience;
+      if(all[p.id].painPoints!=null) li.painPoints = all[p.id].painPoints;
+    }
+  }catch(e){}
+}
+function saveLiveInfo(p){
+  const li = ensureLiveInfo(p);
+  try{
+    const all = JSON.parse(localStorage.getItem(LIVEINFO_LS_KEY)||"{}");
+    all[p.id] = { sellingPoints: li.sellingPoints, audience: li.audience, painPoints: li.painPoints };
+    localStorage.setItem(LIVEINFO_LS_KEY, JSON.stringify(all));
+  }catch(e){}
+}
+function clipFeedbackKey(c){ return String(c.clip_id || c.id || c.clip_index || ""); }
+function persistClipFeedbacks(){ try{ localStorage.setItem(CLIP_FB_LS_KEY, JSON.stringify(S.clipFeedbacks)); }catch(e){} }
+function wholeVideoToSceneClip(wv, scene){
+  const sp = (scene && scene.spKey) || curProduct().ip || "本场主推";
+  return {
+    clip_id: wv.id, thumbUrl: wv.thumbUrl, duration_sec: wv.duration_sec,
+    visual_content: wv.name.replace(/\.(mp4|mov|webm|m4v)$/i,""),
+    clip_type: "strong", match_score: 82, highlight: false,
+    recommend_use: "foreground", selling_point: sp,
+    asr_content: "（将从你的视频解析话术…）",
+    tags: ["整段视频"], start_time_sec: 0,
+    clip_source: "local_upload", clip_source_label: "整段视频",
+    _wholeVideo: true, objectUrl: wv.objectUrl,
+  };
+}
+function wholeVideoToBgClip(wv){
+  return {
+    thumbUrl: wv.thumbUrl, duration_sec: wv.duration_sec,
+    title: wv.name.replace(/\.(mp4|mov|webm|m4v)$/i,""),
+    visual_content: wv.name, objectUrl: wv.objectUrl, _wholeVideo: true,
+  };
+}
+function curProduct(){ return D.PRODUCTS.find(p=>p.id===S.products[0]) || D.PRODUCTS[0]; }
+function ensureLiveInfo(p){
+  if(!p.liveInfo) p.liveInfo = { sellingPoints:[], audience:"", painPoints:"" };
+  return p.liveInfo;
+}
+/** Step2 不预填卖点；品维度信息持久化 localStorage */
+function seedDemoLiveInfo(p){
+  loadLiveInfo(p);
+  const li = ensureLiveInfo(p);
+  if(!li.__demoSeeded) li.__demoSeeded = true;
+  return li;
+}
+function spSummary(p){
+  const li = ensureLiveInfo(p);
+  const n = li.sellingPoints.length;
+  const filled = li.sellingPoints.filter(s=>s.key||s.value).length;
+  if(!n) return "未填写";
+  if(!filled) return `${n} 条待填写 ▸`;
+  return `已填 ${filled} 条卖点 ▸`;
+}
+function sceneStatus(sc){
+  if(sc.script && sc.script.parts && sc.script.parts.some(x=>x.text)) return { t:"已修改", c:"draft" };
+  if(sc.script) return { t:"已生成", c:"ready" };
+  if(sc.method===2 && sc.clip) return { t:"待解析", c:"gen" };
+  if(sc.method===1 && sc.bg && sc.bg!=="Default") return { t:"待生成", c:"gen" };
+  return { t:"未开始", c:"ended" };
+}
+let _oid = 0;
+const newOverlayId = () => "ov_" + (++_oid);
+function defaultSceneOverlays(p){
+  const ovDir = "../../demo-assets/overlays/maas";
+  return [
+    { id:newOverlayId(), type:"product", label:"商品展示", selected:true, img:p.img, text:"", layout:{ leftPct:58, topPct:8, widthPct:28, scale:1 } },
+    { id:newOverlayId(), type:"announce", label:"活动公告", selected:true, img:`${ovDir}/flash.png`, text:"LIVE DEAL · 对标真人直播间公告栏·调研中", layout:{ leftPct:50, topPct:42, widthPct:40, scale:1 } },
+  ];
+}
+function syncScenesFromSellingPoints(){
+  const p = curProduct(); ensureLiveInfo(p);
+  const sps = p.liveInfo.sellingPoints;
+  const bySp = {}; S.scenes.forEach(sc=>{ if(sc.sellingPointId) bySp[sc.sellingPointId]=sc; });
+  S.scenes = sps.map((sp, i)=>{
+    const ex = bySp[sp.id];
+    const title = sp.key || ("未命名卖点 "+(i+1));
+    if(ex){
+      ex.title = title; ex.spKey = sp.key||""; ex.spValue = sp.value||"";
+      if(!ex.overlays || !ex.overlays.length) ex.overlays = defaultSceneOverlays(p);
+      return ex;
+    }
+    return Object.assign(newScene(title, 1, sp.id), { spKey:sp.key||"", spValue:sp.value||"", overlays:defaultSceneOverlays(p) });
+  });
+  if(S.buildSceneIdx >= S.scenes.length) S.buildSceneIdx = Math.max(0, S.scenes.length-1);
+}
+function addSellingPoint(p){
+  ensureLiveInfo(p);
+  p.liveInfo.sellingPoints.push({ id:newSpId(), key:"", value:"" });
+}
+function removeSellingPoint(p, idx){
+  const sp = p.liveInfo.sellingPoints[idx];
+  confirmBox("删除这条卖点后，对应的 Scene 也会删除，确定吗？", ()=>{
+    p.liveInfo.sellingPoints.splice(idx,1);
+    saveLiveInfo(p);
+    if(S.scenes.length) syncScenesFromSellingPoints();
+    window.__dirty=true; render();
+  }, "Delete");
+}
+function updateSceneSellingPoint(sc, field, val){
+  const pr = curProduct(); ensureLiveInfo(pr);
+  const sp = pr.liveInfo.sellingPoints.find(s=>s.id===sc.sellingPointId);
+  if(!sp) return;
+  if(field==="key"){ sp.key=val; sc.spKey=val; sc.title=val||("未命名卖点"); }
+  else { sp.value=val; sc.spValue=val; }
+  S.buildSpSyncHint = true;
+  window.__dirty = true;
+}
+function refreshSceneNavTitles(){
+  document.querySelectorAll(".scene-nav-item .scene-nav-title").forEach((n,i)=>{
+    const sc = S.scenes[i]; if(sc) n.textContent = sc.spKey || sc.title || ("Scene "+(i+1));
+  });
+}
+
+// classic: 1,2,mode,build,5  |  smart: 1,2,mode,SB,5
+// classic 把「配画面(Scene)」与「话术」合并到一个工作台页（build）：左商品流 / 中 Scene 卡（含画面设置+脚本）/ 右 Preview & Layout
+function stepSeq() {
+  if (S.mode === "smart") return [1,2,"mode","sb",5];
+  return [1,2,"mode","build",5];
+}
+const STEP_LABEL = {1:"Set up LIVE",2:"Select product","mode":"Choose mode","build":"Set up scenes & scripts","sb":"LIVE Storyboard",5:"Render & launch"};
+// 商家友好提示（大白话，不暴露内部技术/优先级/受众）
+const TIP = {
+  1:"先给直播起名、确认国家与语言，再挑一位你喜欢的数字人主播。",
+  2:"勾选商品后，可补充卖点与直播信息（全部选填，平台不预填卖点）。每条卖点会对应一个 Scene。",
+  "mode":"两种做法，二选一。新手建议从「分步引导」开始。",
+  "build":"左侧选 Scene。中间配画面和话术；右侧 Preview 调整布局与贴片（未设本卖点贴片时沿用全场）。",
+  "sb":"平台会先给你一版整场安排说明；你可以写下自己的想法，再一键重新编排时间线。",
+  5:"确认信息无误即可开播。",
+};
+
+function renderStepbar() {
+  const seq = stepSeq(), bar = $("#stepbar"); bar.innerHTML = "";
+  seq.forEach((k, i) => {
+    const idx = seq.indexOf(S.step);
+    const cur = seq.indexOf(k);
+    const cls = k === S.step ? "active" : (cur < idx ? "done" : "");
+    const node = el("div", "step " + cls, `<span class="num">${cur<idx?"✓":i+1}</span> ${STEP_LABEL[k]}`);
+    node.onclick = () => { if (cur <= idx) { S.step = k; render(); } };
+    bar.appendChild(node);
+    if (i < seq.length-1) bar.appendChild(el("div","sep"));
+  });
+}
+
+// ---------------- Step 1 ----------------
+function renderStep1() {
+  const langAvatars = D.AVATARS.filter(a => a.langs.includes(S.language));
+  const wrap = el("div");
+  wrap.innerHTML = `
+    <div class="pcard" style="margin-bottom:14px">
+      <div class="row" style="gap:24px;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px">
+          <label class="muted" style="font-size:12px">LIVE name</label>
+          <input id="lname" value="${esc(S.liveName)}" style="width:100%;padding:8px 10px;border:1px solid var(--grey-300);border-radius:6px;margin-top:4px" />
+        </div>
+        <div>
+          <label class="muted" style="font-size:12px">Live market <span class="chip">New</span></label>
+          <div class="row" style="margin-top:6px"><span class="tag neutral">🇺🇸 United States</span></div>
+        </div>
+        <div>
+          <label class="muted" style="font-size:12px">Live language <span class="chip">New</span></label>
+          <div class="row" style="margin-top:6px" id="langSel"></div>
+        </div>
+      </div>
+      <div class="tipcard" style="margin-top:12px">语言决定本场话术与素材的语言；一场一种语言。切换语言后，只会显示支持该语言的数字人。</div>
+    </div>
+    <div class="between"><h3>Choose your digital human</h3><span class="muted" id="avatarCount"></span></div>
+    <div class="muted" style="font-size:12px;margin-top:2px">每位主播有出厂人格设定（性格 / 口音语速 / 人设描述 / 擅长品类），决定话术风格与音色。</div>
+    <div class="card-grid" id="avaGrid" style="grid-template-columns:repeat(4,1fr);margin-top:10px"></div>
+  `;
+  // language radios
+  const langSel = wrap.querySelector("#langSel");
+  [["en","English"],["es","Español"]].forEach(([v,t]) => {
+    const b = el("button", "btn sm " + (S.language===v?"primary":"ghost"), t);
+    b.onclick = () => { S.language=v; if(S.avatar && !S.avatar.langs.includes(v)) S.avatar=null; render(); };
+    langSel.appendChild(b);
+  });
+  // avatars — 人格卡（性格 / 口音语速 / 人设描述 / 品类定位 / 音色 / 语言）
+  const grid = wrap.querySelector("#avaGrid");
+  langAvatars.forEach(a => {
+    const c = el("div", "sel-card" + (S.avatar && S.avatar.id===a.id ? " selected":""));
+    c.innerHTML = `<div class="tick">✓</div>
+      <div class="thumb" style="${bg(D.avatarImg(a))};aspect-ratio:1/1;background-size:contain;background-repeat:no-repeat;background-position:center;background-color:#f3f4f6"></div>
+      <div class="meta">
+        <div class="row between"><div class="nm">${esc(a.name)}</div><span class="chip" style="background:var(--teal-50);color:var(--teal)">${esc(a.persona)}</span></div>
+        <div class="sub">${esc(a.zh)} · ${esc(a.eth)}</div>
+        <div class="muted" style="font-size:12px;margin:6px 0;line-height:1.5">${esc(a.desc)}</div>
+        <div style="font-size:11.5px;color:#374151;margin-bottom:4px">🔊 ${esc(a.accent)}　${a.voice.map(v=>`<span class="chip">${v}</span>`).join("")}</div>
+        <div style="margin-bottom:4px"><span class="muted" style="font-size:11px">擅长品类：</span>${a.cat.map(t=>`<span class="chip">${esc(t)}</span>`).join("")}</div>
+        <div class="row between" style="margin-top:6px">
+          <div>${a.langs.map(l=>`<span class="chip" style="background:var(--teal-50);color:var(--teal)">${l.toUpperCase()}</span>`).join("")}</div>
+          <button class="btn ghost sm" data-listen>▷ Listen 10s</button></div>
+      </div>`;
+    c.onclick = (e) => { if(e.target.dataset.listen!==undefined){ alert("（Demo）播放 "+a.name+" 音色试听 10s（"+a.accent+"）"); return;} S.avatar=a; render(); };
+    grid.appendChild(c);
+  });
+  wrap.querySelector("#avatarCount").textContent = `${langAvatars.length} 位主播 · 已按支持 ${S.language.toUpperCase()} 的音色过滤`;
+  wrap.querySelector("#lname").oninput = e => S.liveName = e.target.value;
+  return wrap;
+}
+
+// ---------------- Step 2 · 选品 + 补信息（卖点 key-value 空态 · 全选填） ----------------
+function renderLiveInfoExpand(tr, p){
+  const li = ensureLiveInfo(p);
+  const er = el("tr","sp-expand-row");
+  const td = el("td"); td.colSpan = 6;
+  const box = el("div");
+  box.innerHTML = `<div class="banner" style="margin-bottom:10px"><span>✦</span><div>补充直播信息（<b>全部选填</b>）。卖点需商家自己填写，平台不会预填。填写后会保存在本机，下次打开还在。<span class="x">×</span></div></div>
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:8px">卖点列表 <span class="muted" style="font-weight:500">· 左 key 35% / 右 value 65% · 每条对应一个 Scene</span></div>
+    <div id="spList"></div>
+    <button class="btn ghost sm" id="addSp" style="margin-top:6px">+ 增加一条卖点</button>
+    <div class="divider"></div>
+    <div class="sp-expand-fields">
+      <div class="sp-field sp-field--full"><div class="kv-label">适合人群</div><textarea class="liAud sp-textarea" placeholder="e.g. gift buyers · desk decor lovers" rows="2">${esc(li.audience)}</textarea></div>
+      <div class="sp-field sp-field--full"><div class="kv-label">核心痛点</div><textarea class="liPain sp-textarea" placeholder="e.g. need a calming buddy after a long day" rows="2">${esc(li.painPoints)}</textarea></div>
+    </div>
+    <div class="muted" style="font-size:11.5px;margin-top:8px" id="liSaveHint"></div>`;
+  const spList = box.querySelector("#spList");
+  function drawSpList(){
+    spList.innerHTML = "";
+    if(!li.sellingPoints.length){
+      spList.appendChild(el("div","muted","暂无卖点。点「+ 增加一条卖点」开始填写（可不填直接下一步）。"));
+      return;
+    }
+    li.sellingPoints.forEach((sp, idx)=>{
+      const card = el("div","sp-kv-card");
+      card.innerHTML = `<div class="between" style="margin-bottom:6px"><b style="font-size:12px">卖点 ${idx+1}</b><span style="cursor:pointer;color:var(--del);font-size:12px" data-del>🗑 删除</span></div>
+        <div class="sp-kv-row">
+          <div class="sp-key-col"><div class="kv-label">key</div><input class="spKey" placeholder="e.g. Soft & squishy texture" value="${esc(sp.key)}"></div>
+          <div class="sp-val-col"><div class="kv-label">value</div><textarea class="spVal" placeholder="Tell shoppers why this matters…" rows="2">${esc(sp.value)}</textarea></div>
+        </div>`;
+      const persistSp = ()=>{ saveLiveInfo(p); const hint=box.querySelector("#liSaveHint"); if(hint) hint.textContent="✓ 已保存到本机（按商品维度）"; };
+      card.querySelector(".spKey").oninput = e=>{ sp.key=e.target.value.trim(); window.__dirty=true; if(S.scenes.length) syncScenesFromSellingPoints(); persistSp(); };
+      card.querySelector(".spVal").oninput = e=>{ sp.value=e.target.value; window.__dirty=true; if(S.scenes.length) syncScenesFromSellingPoints(); persistSp(); };
+      card.querySelector("[data-del]").onclick = ()=>removeSellingPoint(p, idx);
+      spList.appendChild(card);
+    });
+  }
+  drawSpList();
+  box.querySelector("#addSp").onclick = ()=>{ addSellingPoint(p); drawSpList(); window.__dirty=true; saveLiveInfo(p); };
+  const persistLi = ()=>{ saveLiveInfo(p); const hint=box.querySelector("#liSaveHint"); if(hint) hint.textContent="✓ 已保存到本机（按商品维度）"; };
+  const bind = (sel, key)=>{ const el=box.querySelector(sel); el.oninput=()=>{ li[key]=el.value; window.__dirty=true; persistLi(); }; };
+  bind(".liAud","audience"); bind(".liPain","painPoints");
+  const x = box.querySelector(".banner .x"); if(x) x.onclick=()=>{ S.expandedProduct=null; render(); };
+  td.appendChild(box); er.appendChild(td);
+  tr.parentNode.insertBefore(er, tr.nextSibling);
+}
+function renderStep2() {
+  const wrap = el("div");
+  wrap.innerHTML = `<div class="between" style="margin-bottom:10px"><h3>Select product</h3><button class="btn primary sm" id="addP">+ Add products</button></div>`;
+  const tbl = el("table","v2");
+  tbl.innerHTML = `<tr><th style="width:40px"></th><th>Product</th><th>补充信息</th><th>Price</th><th>Stock</th><th>30d 动销</th></tr>`;
+  D.PRODUCTS.forEach(p => {
+    seedDemoLiveInfo(p);
+    const tr = el("tr");
+    const on = S.products.includes(p.id);
+    tr.innerHTML = `<td><input type="checkbox" ${on?"checked":""} data-id="${p.id}"></td>
+      <td><div class="prodcell"><div class="pimg" style="${bg(p.img)}"></div><div><div style="font-weight:700">${esc(p.ip)}</div><div class="muted" style="font-size:11.5px;max-width:280px">${esc(p.name)}</div><div class="muted" style="font-size:11px">ID: ${p.id}</div></div></div></td>
+      <td><button class="btn ghost sm spToggle" type="button">${spSummary(p)}</button></td>
+      <td>${p.price}</td><td>${p.stock}</td><td>${p.soldsale?'<span class="tag ready">✓ 有动销</span>':'<span class="tag ended">—</span>'}</td>`;
+    tr.querySelector("input").onchange = e => {
+      if(e.target.checked){ if(!S.products.includes(p.id)) S.products.push(p.id); }
+      else S.products = S.products.filter(x=>x!==p.id);
+      renderActionbar();
+    };
+    tr.querySelector(".spToggle").onclick = ()=>{
+      S.expandedProduct = (S.expandedProduct===p.id ? null : p.id);
+      render();
+    };
+    tbl.appendChild(tr);
+    if(S.expandedProduct === p.id) renderLiveInfoExpand(tr, p);
+  });
+  wrap.appendChild(tbl);
+  wrap.appendChild(el("div","muted",`<div style="margin-top:8px;font-size:12px">已选 <b>${S.products.length}</b> 个商品，第一个作为本场主推。卖点与直播信息<b>全部选填</b>——每条卖点会在后续对应一个 Scene。</div>`));
+  wrap.querySelector("#addP").onclick = ()=>alert("（Demo）打开商品选择器");
+  return wrap;
+}
+
+// ---------------- §4.5 双模式二选一 ----------------
+function renderMode() {
+  const outer = el("div");
+  outer.innerHTML = `<h3 style="margin-bottom:4px">选择你的直播制作方式</h3><div class="muted" style="margin-bottom:12px">两种都能开播，随时都能改。不确定就选第一种。</div>`;
+  const wrap = el("div", "grid2"); wrap.style.cssText = "gap:18px";
+  const c1 = el("div","pcard");
+  c1.style.cssText = "cursor:pointer;border:2px solid " + (S.mode==="classic"?"var(--teal)":"var(--line)");
+  c1.innerHTML = `<h3>🧭 分步引导（推荐新手）</h3>
+    <p class="muted">一步一步来：先给每个商品安排好直播画面，再看一眼自动写好的话术。每一步都看得见、改得动，最稳妥。</p>
+    <ul class="muted" style="font-size:13px;padding-left:18px">
+      <li>先配画面：数字人讲，或放你自己的视频</li>
+      <li>再看话术：开场 / 讲解 / 促单，已自动写好</li>
+      <li>节奏慢、好上手，适合第一次用</li></ul>
+    <button class="btn primary" style="margin-top:8px">用分步引导 →</button>`;
+  c1.onclick = ()=>{ S.mode="classic"; syncScenesFromSellingPoints(); S.buildSceneIdx=0; S.step="build"; render(); };
+  const c2 = el("div","pcard");
+  c2.style.cssText = "cursor:pointer;border:2px solid " + (S.mode==="smart"?"var(--teal)":"var(--line)");
+  c2.innerHTML = `<div class="row" style="gap:8px"><h3>✨ 智能剧本</h3><span class="chip" style="background:#fff3cd;color:#d97706">省心之选</span></div>
+    <p class="muted">一屏搞定整场。系统帮你把「主播说话、画面切换、和观众互动、上优惠、配音乐」全部安排在同一条时间线上，像真人直播一样自然热闹，你只要微调。</p>
+    <ul class="muted" style="font-size:13px;padding-left:18px">
+      <li>一屏看到整场节奏，不用来回切页</li>
+      <li>多件事同时发生，更像真人直播间</li>
+      <li>话术时长自动对齐，不用自己算</li></ul>
+    <button class="btn primary" style="margin-top:8px">试试智能剧本 →</button>`;
+  c2.onclick = ()=>{ S.mode="smart"; if(!S.storyPlaybook) genStoryPlaybook(); S.step="sb"; render(); };
+  wrap.appendChild(c1); wrap.appendChild(c2); outer.appendChild(wrap);
+  return outer;
+}
+function genStoryPlaybook(){
+  const p = curProduct(); ensureLiveInfo(p);
+  const sps = p.liveInfo.sellingPoints.filter(s=>s.key||s.value);
+  const lines = [];
+  lines.push("开场：先欢迎进直播间，快速介绍本场主推「"+p.ip+"」。");
+  if(sps.length) sps.forEach((sp,i)=> lines.push("Scene "+(i+1)+" · "+(sp.key||("卖点"+(i+1)))+"："+(sp.value||"围绕这个卖点展开讲解")+"。"));
+  else lines.push("中段：依次介绍商品外观、手感和适合谁买。");
+  lines.push("收尾：提醒库存有限，引导点击购物袋下单。");
+  S.storyPlaybook = lines.join("\n");
+}
+// ---------------- build · Scene 与卖点 1:1 ----------------
+// 单个 clip 详情抽屉（语义搜索/素材库内点开查看），onUse 回调把该 clip 用到 scene
+function openClipDetail(c, onUse) {
+  const fbKey = clipFeedbackKey(c);
+  const existing = S.clipFeedbacks[fbKey];
+  const body = el("div");
+  body.innerHTML = `<div class="grid2">
+    <div><div class="thumb-wrap"><div class="thumb wide" style="${bg(c.thumbUrl)};border-radius:10px;aspect-ratio:9/16"></div><span class="dur-badge">${c.duration_sec}s</span></div></div>
+    <div>
+      <div class="row" style="gap:6px"><span class="tag ${c.clip_type}">${clipTypeLabel(c.clip_type)}</span>${c.highlight?'<span class="chip" style="background:#fff3cd;color:#d97706">★ 高光</span>':''}<span class="chip">建议 ${useLabel(c.recommend_use)}</span></div>
+      <p style="margin:10px 0 6px;font-weight:600">${esc(c.visual_content)}</p>
+      <div style="margin:6px 0">${(c.tags||[]).map(t=>`<span class="chip">${esc(t)}</span>`).join("")}</div>
+      <table class="v2" style="margin-top:8px">
+        <tr><th>片段来源</th><td>${esc(clipSourceMeta(c).short)} <span class="muted" style="font-size:11px">${esc(clipSourceMeta(c).tip)}</span></td></tr>
+        <tr><th>时间区间</th><td>${c.start_time_sec}s – ${c.start_time_sec+c.duration_sec}s（${c.duration_sec}s）</td></tr>
+        <tr><th>与本场商品匹配度</th><td><div class="row" style="gap:8px;align-items:center"><div class="meter ${c.match_score>=90?'hi':c.match_score<50?'lo':''}" style="flex:1"><i style="width:${c.match_score}%"></i></div><b>${c.match_score}</b></div></td></tr>
+        <tr><th>为什么推荐</th><td style="line-height:1.6">${esc(c.match_reason || "平台暂未提供匹配依据")}</td></tr>
+        <tr><th>对应卖点</th><td>${esc(c.selling_point)}</td></tr>
+        <tr><th>视频原声</th><td class="muted">${esc(c.asr_content)}</td></tr>
+        <tr><th>视频规格</th><td>${esc(clipSpec(c))}</td></tr>
+      </table>
+      <div class="clip-feedback-section">
+        <div style="font-weight:600;margin-bottom:6px">反馈给平台</div>
+        <div class="muted" style="font-size:12px;margin-bottom:8px">解析不准？请至少选一个原因，我们会用来改进识别效果。</div>
+        <div class="feedback-reasons row" style="gap:6px;flex-wrap:wrap" id="fbReasons">
+          ${CLIP_FEEDBACK_REASONS.map(r=>`<label class="feedback-chip${existing&&existing.reasons&&existing.reasons.includes(r)?' on':''}"><input type="checkbox" value="${esc(r)}" ${existing&&existing.reasons&&existing.reasons.includes(r)?'checked disabled':''}> ${esc(r)}</label>`).join("")}
+        </div>
+        <textarea class="feedback-note" id="fbNote" placeholder="补充说明（选填）" rows="2"${existing?' disabled':''}>${existing&&existing.note?esc(existing.note):""}</textarea>
+        ${existing?'<div class="muted" style="font-size:11.5px;margin-top:6px;color:var(--ready)">✓ 已收到你的反馈，感谢！仍可继续用到本 Scene。</div>':''}
+      </div>
+    </div></div>`;
+  const foot = el("div","row");
+  foot.style.cssText = "gap:8px;justify-content:flex-end;flex-wrap:wrap";
+  foot.innerHTML = `<button class="btn ghost sm" data-no>关闭</button><button class="btn ghost sm" data-fb ${existing?'disabled':''}>${existing?'已反馈 ✓':'反馈给平台'}</button>${onUse?'<button class="btn primary sm" data-use>用到这个 Scene</button>':''}`;
+  const dlg = modal("片段详情", body, foot, "modal-wide");
+  foot.querySelector("[data-no]").onclick = dlg.close;
+  if(onUse) foot.querySelector("[data-use]").onclick = ()=>{ dlg.close(); onUse(c); };
+  const fbBtn = foot.querySelector("[data-fb]");
+  if(fbBtn && !existing){
+    const syncFbBtn = ()=>{
+      const picked = [...body.querySelectorAll("#fbReasons input:checked")].map(x=>x.value);
+      fbBtn.disabled = picked.length === 0;
+    };
+    body.querySelectorAll("#fbReasons input").forEach(inp=>inp.onchange = syncFbBtn);
+    syncFbBtn();
+    fbBtn.onclick = ()=>{
+      const reasons = [...body.querySelectorAll("#fbReasons input:checked")].map(x=>x.value);
+      if(!reasons.length){ alert("请至少选择一个反馈原因。"); return; }
+      const note = (body.querySelector("#fbNote")?.value||"").trim();
+      S.clipFeedbacks[fbKey] = { reasons, note, ts: Date.now() };
+      persistClipFeedbacks();
+      fbBtn.textContent = "已反馈 ✓";
+      fbBtn.disabled = true;
+      body.querySelectorAll("#fbReasons input").forEach(inp=>{ inp.disabled=true; inp.closest(".feedback-chip")?.classList.add("on"); });
+      const noteEl = body.querySelector("#fbNote"); if(noteEl) noteEl.disabled = true;
+      const ok = body.querySelector(".clip-feedback-section");
+      if(ok && !ok.querySelector(".fb-done")){ const d=el("div","muted fb-done"); d.style.cssText="font-size:11.5px;margin-top:6px;color:var(--ready)"; d.textContent="✓ 已收到你的反馈，感谢！仍可继续用到本 Scene。"; ok.appendChild(d); }
+    };
+  }
+}
+// 换背景：选类型（纯色 / 图片 / 视频）。视频 → 打开素材库挑 clip 当背景
+function chooseBackground(sc){
+  const body = el("div");
+  const swatches = [["Cozy desk","🪑"],["Pastel studio","🎀"],["Plain white","⬜"],["Warm gradient","🌅"]];
+  body.innerHTML = `<div class="muted" style="font-size:12.5px;margin-bottom:10px">选择背景类型：</div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <button class="btn ghost" data-t="color">🎨 纯色 / 预设场景</button>
+      <button class="btn ghost" data-t="image">🖼 上传图片</button>
+      <button class="btn primary" data-t="video">🎬 选视频（从素材库）</button>
+    </div>
+    <div id="bgExtra" style="margin-top:14px"></div>`;
+  const dlg = modal("换背景 · "+esc(sc.title), body, null);
+  const extra = body.querySelector("#bgExtra");
+  body.querySelector('[data-t="color"]').onclick=()=>{
+    extra.innerHTML = `<div class="muted" style="font-size:12px;margin-bottom:8px">预设场景：</div><div class="row" style="gap:8px;flex-wrap:wrap">${swatches.map(s=>`<button class="btn ghost sm" data-sw="${s[0]}">${s[1]} ${s[0]}</button>`).join("")}</div>`;
+    extra.querySelectorAll("[data-sw]").forEach(b=>b.onclick=()=>{ sc.bgType="color"; sc.bg=b.dataset.sw; sc.bgClip=null; dlg.close(); render(); });
+  };
+  body.querySelector('[data-t="image"]').onclick=()=>{
+    extra.innerHTML = `<div id="bgdz" style="border:2px dashed var(--grey-300);border-radius:10px;padding:22px;text-align:center;color:var(--grey)"><div style="font-size:24px">🖼</div><div style="margin-top:6px">拖拽图片到此或 <label class="btn ghost sm" style="cursor:pointer">选择文件<input id="bgf" type="file" accept="image/*" style="display:none"></label></div></div>`;
+    const f=extra.querySelector("#bgf"); f.onchange=()=>{ if(f.files[0]){ sc.bgType="image"; sc.bg=f.files[0].name; sc.bgClip=null; dlg.close(); render(); } };
+  };
+  body.querySelector('[data-t="video"]').onclick=()=>{ dlg.close(); openSceneLibrary(sc, {asBackground:true}); };
+}
+// 素材库弹框（My assets：Clips / 本地上传 / TikTok 同步 + 语义搜索），给某个 scene 选 clip
+// opts.asBackground=true 时，选中的视频 clip 作为「方式1 背景视频」回填，而非方式2 主片段
+function openSceneLibrary(scene, opts) {
+  const asBg = !!(opts && opts.asBackground);
+  const pick = (c) => {
+    if (asBg) { scene.bgType = "video"; scene.bgClip = c; scene.bg = c.title || c.visual_content?.slice(0,12) || "视频背景"; }
+    else { scene.clip = c; scene.method = 2; scene.script = null; scene._scriptBusy = false; }
+    dlg.close(); render();
+  };
+  const pickWhole = (wv, mode) => {
+    if(mode==="bg" || asBg){
+      scene.bgType = "video";
+      scene.bgClip = wholeVideoToBgClip(wv);
+      scene.bg = wv.name.replace(/\.(mp4|mov|webm|m4v)$/i,"").slice(0,12) || "视频背景";
+    } else {
+      scene.clip = wholeVideoToSceneClip(wv, scene);
+      scene.method = 2;
+      scene.script = null;
+      scene._scriptBusy = false;
+    }
+    dlg.close(); render();
+  };
+  const banks = [D.CLIPS_M1, D.CLIPS_M2, D.CLIPS_LIVE];
+  const rebuildAllClips = () => banks.flatMap(b=>b.clips.filter(c=>c.clip_type!=="risk").map(c=>({...c, _bank:b})))
+    .concat(S.uploadedClips.filter(c=>c.clip_type!=="risk").map(c=>({...c, clip_source:"local_upload", clip_source_label:"本地上传"})));
+  const body = el("div","assets-modal");
+  body.innerHTML = `
+    <div class="row between" style="margin-bottom:10px;flex-wrap:wrap;gap:8px" id="srcTabs">
+      <div class="row" style="gap:8px">
+        <button class="btn primary sm" data-src="clips">我的片段</button>
+        <button class="btn ghost sm" data-src="local">上传视频</button>
+        <button class="btn ghost sm" data-src="whole">整段视频</button>
+      </div>
+      <span class="muted" style="font-size:11.5px">整段视频单独存放；解析后的片段在「我的片段」</span></div>
+    <div id="parseProgressDock" class="parse-progress-dock" style="display:none;margin-bottom:10px"></div>
+    <div id="srcBody"></div>`;
+  const dlg = modal(asBg ? "My assets · 选择背景视频" : "My assets · 选择素材", body, null);
+  const sb = body.querySelector("#srcBody");
+  const parseDock = body.querySelector("#parseProgressDock");
+  let parseRunId = 0;
+  let parseActiveTimer = null;
+  function clearParseTimer(){ if(parseActiveTimer){ clearInterval(parseActiveTimer); parseActiveTimer=null; } }
+  function resetParseFileInput(){ const vf=sb.querySelector("#vf"); if(vf) vf.value=""; }
+  function showParseProgress(fileName, runId){
+    if(!parseDock) return null;
+    parseDock.style.display="block";
+    parseDock.innerHTML=`<div class="card" style="padding:14px;border-color:var(--teal-200)">
+      <div class="between"><b style="font-size:13px">Gemini 解析中：${esc(fileName)}</b><span id="parsePp" class="muted" style="font-size:12px">2%</span></div>
+      <div class="meter" style="height:9px;margin:10px 0"><i id="parsePbar" style="width:2%;transition:width .5s"></i></div>
+      <div id="parsePstage" class="muted" style="font-size:12px">① 准备上传…</div></div>`;
+    const bar=parseDock.querySelector("#parsePbar"), pp=parseDock.querySelector("#parsePp"), st=parseDock.querySelector("#parsePstage");
+    const setp=(v,label)=>{ if(runId!==parseRunId||!bar) return; bar.style.width=v+"%"; pp.textContent=v+"%"; if(label&&st) st.innerHTML=label; };
+    return { setp, bar, pp, st };
+  }
+  function hideParseProgress(){ clearParseTimer(); if(parseDock){ parseDock.style.display="none"; parseDock.innerHTML=""; } }
+  function isParsing(){ return parseActiveTimer !== null; }
+  // 卖点上下文：弹框是从「某商品的某 Scene/卖点」点进来的，按 (商品 × 卖点) 给相关度
+  const li = ensureLiveInfo(curProduct());
+  const ctxText = ((scene && (scene.spKey||scene.title)) || "") + " " + li.sellingPoints.map(s=>s.key).join(" ") + " " + (curProduct().ip || "");
+  const ctxKw = ctxText.toLowerCase().split(/[^a-z0-9\u4e00-\u9fa5]+/).filter(w=>w.length>=2);
+  const relScore = (c)=>{
+    const hay = (c.visual_content+" "+(c.tags||[]).join(" ")+" "+(c.selling_point||"")).toLowerCase();
+    let kw = 0; ctxKw.forEach(w=>{ if(hay.includes(w)) kw++; });
+    return (c.match_score||0) + kw*40 + (c.clip_type==="strong"?20:0);  // 卖点关键词命中权重最高
+  };
+  // 单张 clip 卡（强相关段 / 全部段共用）
+  const makeCard = (c)=>{
+    const src = clipSourceMeta(c);
+    const card = el("div","sel-card asset-clip-card");
+    card.innerHTML = `<div class="thumb-wrap"><div class="thumb wide" style="${bg(c.thumbUrl)}"></div><span class="dur-badge">${c.duration_sec}s</span>
+      <span class="src-badge" title="${esc(src.tip)}">${esc(src.short)}</span>
+      <button class="btn ghost sm" data-eye style="position:absolute;left:6px;top:6px;padding:2px 7px">🔍</button></div>
+      <div class="meta"><div class="row between"><span class="tag ${c.clip_type}">${clipTypeLabel(c.clip_type)}</span>${c.highlight?'<span style="color:#d97706">★</span>':''}</div>
+      <div style="font-size:11.5px;margin:5px 0;height:28px;overflow:hidden" class="muted">${esc(c.visual_content)}</div>
+      <div class="muted" style="font-size:10.5px;height:26px;overflow:hidden;margin:2px 0">${esc((c.match_reason||"").slice(0,72))}${(c.match_reason||"").length>72?"…":""}</div>
+      <div class="row" style="gap:6px;align-items:center"><div class="meter ${c.match_score>=90?'hi':''}" style="flex:1"><i style="width:${c.match_score}%"></i></div><b style="font-size:12px">${c.match_score}</b></div></div>`;
+    card.querySelector("[data-eye]").onclick = (e)=>{ e.stopPropagation(); openClipDetail(c, (cl)=>pick(cl)); };
+    card.onclick = ()=> openClipDetail(c, (cl)=>pick(cl));
+    return card;
+  };
+  // 是否与当前卖点强相关：卖点关键词命中 / 高匹配度 / 高光片段
+  const isStrong = (c)=>{
+    const hay = (c.visual_content+" "+(c.tags||[]).join(" ")+" "+(c.selling_point||"")).toLowerCase();
+    let hit=false; ctxKw.forEach(w=>{ if(hay.includes(w)) hit=true; });
+    return hit || (c.match_score||0)>=85 || c.clip_type==="strong";
+  };
+  function renderClips(qActive, srcKind){
+    const q = (qActive!=null ? qActive : assetsQueryActive).trim().toLowerCase();
+    let list = rebuildAllClips().filter(c => !q || (c.visual_content+ " "+(c.tags||[]).join(" ")+" "+c.selling_point).toLowerCase().includes(q));
+    if(srcKind) list = list.filter(c=>clipSourceMeta(c).kind===srcKind);
+    const spLabel = esc((scene&&scene.title)||curProduct().ip);
+    const searchBar = `<div class="row" style="gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="q" placeholder="🔎 语义搜索：如 ASMR / 成品对比 / 开箱…" value="${esc(assetsQueryDraft)}" style="flex:1;min-width:200px;padding:8px 10px;border:1px solid var(--grey-300);border-radius:8px"><button class="btn primary sm" id="qGo">搜索</button><select id="srcFilter" style="padding:7px 10px;border:1px solid var(--grey-300);border-radius:8px;font-size:12.5px"><option value="">全部来源</option><option value="local_upload">本地上传</option><option value="tiktok_post">已发布视频</option><option value="live_replay">直播录屏</option></select><span class="muted" style="font-size:12px;align-self:center">${list.length} 个片段</span></div>`;
+    if(q){
+      sb.innerHTML = searchBar + `<div class="muted" style="font-size:12px;margin-bottom:8px">搜索结果${q?(" · 「"+esc(assetsQueryActive)+"」"):""}：</div>
+        ${list.length? '<div class="card-grid" id="cg" style="grid-template-columns:repeat(3,1fr)"></div>' : `<div class="tipcard">没找到匹配的片段。换个关键词，或到「上传视频」补充素材。</div>`}`;
+      const cg = sb.querySelector("#cg"); if(cg) list.forEach(c=>cg.appendChild(makeCard(c)));
+    } else {
+      const sorted = list.slice().sort((a,b)=>relScore(b)-relScore(a));
+      const top = sorted.filter(isStrong);
+      const rest = sorted.filter(c=>!isStrong(c));
+      sb.innerHTML = searchBar + `<div class="row between" style="margin-bottom:8px"><b style="font-size:12.5px;color:var(--teal)">✨ 与卖点「${spLabel}」最相关</b><span class="muted" style="font-size:11.5px">${top.length} 个</span></div>
+        ${top.length? '<div class="card-grid" id="cgTop" style="grid-template-columns:repeat(3,1fr)"></div>' : `<div class="muted" style="font-size:12px;margin-bottom:6px">暂无强相关片段，可在下方「全部片段」里挑选。</div>`}
+        <div class="divider" style="margin:14px 0 10px"></div>
+        <div class="row between" style="margin-bottom:8px"><b style="font-size:12.5px">全部片段</b><span class="muted" style="font-size:11.5px">${rest.length} 个 · 点缩略图可放大</span></div>
+        ${rest.length? '<div class="card-grid" id="cgAll" style="grid-template-columns:repeat(3,1fr)"></div>' : `<div class="muted" style="font-size:12px">没有更多片段了。</div>`}`;
+      const cgTop = sb.querySelector("#cgTop"); if(cgTop) top.forEach(c=>cgTop.appendChild(makeCard(c)));
+      const cgAll = sb.querySelector("#cgAll"); if(cgAll) rest.forEach(c=>cgAll.appendChild(makeCard(c)));
+    }
+    const qi = sb.querySelector("#q");
+    if(qi) qi.oninput = ()=>{ assetsQueryDraft = qi.value; };
+    const runAssetsSearch = ()=>{ assetsQueryDraft = qi?qi.value:""; assetsQueryActive = assetsQueryDraft.trim(); renderClips(assetsQueryActive, sb.querySelector("#srcFilter")?.value||""); };
+    sb.querySelector("#qGo")?.addEventListener("click", runAssetsSearch);
+    if(qi) qi.onkeydown = e=>{ if(e.key==="Enter"){ e.preventDefault(); runAssetsSearch(); } };
+    const sf = sb.querySelector("#srcFilter");
+    if(sf) sf.onchange = ()=>{ renderClips(assetsQueryActive, sf.value); };
+  }
+  function goClipsTab(){
+    body.querySelectorAll("#srcTabs [data-src]").forEach(x=>{x.className="btn ghost sm";});
+    const cb = body.querySelector('#srcTabs [data-src="clips"]'); if(cb) cb.className="btn primary sm";
+    renderClips("","");
+  }
+  function goWholeTab(){
+    body.querySelectorAll("#srcTabs [data-src]").forEach(x=>{x.className="btn ghost sm";});
+    const wb = body.querySelector('#srcTabs [data-src="whole"]'); if(wb) wb.className="btn primary sm";
+    renderWholeVideos();
+  }
+  function makeWholeCard(wv){
+    const card = el("div","sel-card asset-clip-card");
+    const label = wv.name.replace(/\.(mp4|mov|webm|m4v)$/i,"");
+    card.innerHTML = `<div class="thumb-wrap"><div class="thumb wide" data-wv-thumb data-wv-id="${esc(wv.id)}" style="${bg(wv.thumbUrl)}"></div><span class="dur-badge">${wv.duration_sec}s</span>
+      <span class="src-badge">整段</span></div>
+      <div class="meta"><div class="row between"><span class="tag strong">整段视频</span></div>
+      <div style="font-size:11.5px;margin:5px 0;height:30px;overflow:hidden" class="muted">${esc(label)}</div>
+      <div class="muted" style="font-size:11px">不拆段，可直接用作主视频或直播背景</div></div>`;
+    card.onclick = ()=>{
+      const detail = el("div");
+      detail.innerHTML = `<div class="grid2">
+        <div><div class="thumb-wrap"><div class="thumb wide" style="${bg(wv.thumbUrl)};border-radius:10px;aspect-ratio:9/16"></div><span class="dur-badge">${wv.duration_sec}s</span></div></div>
+        <div><p style="font-weight:600;margin:0 0 8px">${esc(label)}</p>
+          <div class="muted" style="font-size:12px;margin-bottom:12px">整段使用，不会出现在「我的片段」里。</div>
+          <table class="v2"><tr><th>时长</th><td>${wv.duration_sec}s</td></tr><tr><th>来源</th><td>本地上传 · 整段视频</td></tr></table>
+        </div></div>`;
+      const foot = el("div","row");
+      foot.style.cssText = "gap:8px;justify-content:flex-end;flex-wrap:wrap";
+      if(asBg){
+        foot.innerHTML = `<button class="btn ghost sm" data-no>关闭</button><button class="btn primary sm" data-bg>用作直播背景</button>`;
+      } else {
+        foot.innerHTML = `<button class="btn ghost sm" data-no>关闭</button><button class="btn ghost sm" data-bg>用作直播背景</button><button class="btn primary sm" data-main>用作本 Scene 主视频</button>`;
+      }
+      const sub = modal("整段视频 · "+esc(label), detail, foot, "modal-wide");
+      foot.querySelector("[data-no]").onclick = sub.close;
+      foot.querySelector("[data-bg]")?.addEventListener("click", ()=>{ sub.close(); pickWhole(wv, "bg"); });
+      foot.querySelector("[data-main]")?.addEventListener("click", ()=>{ sub.close(); pickWhole(wv, "main"); });
+    };
+    return card;
+  }
+  function renderWholeVideos(){
+    const list = S.wholeVideos.slice().reverse();
+    sb.innerHTML = `<div class="banner" style="margin-bottom:10px"><span>🎬</span><div>这里是你选择「整段使用」上传的视频，不会拆成片段。可整段用作方式2主视频，或当作直播背景。</div></div>
+      ${list.length? `<div class="card-grid" id="cgWhole" style="grid-template-columns:repeat(3,1fr)"></div>` : `<div class="tipcard">还没有整段视频。请到「上传视频」选择「整段使用」上传，或先用「我的片段」。</div>
+      <div class="row" style="margin-top:10px"><button class="btn ghost sm" data-go-upload>去上传整段视频 →</button></div>`}`;
+    const cg = sb.querySelector("#cgWhole");
+    if(cg) list.forEach(wv=>{
+      cg.appendChild(makeWholeCard(wv));
+      if(wv.objectUrl && !wv._thumbFixed){
+        wv._thumbFixed=true;
+        captureBestThumb(wv.objectUrl, wv.duration_sec).then(thumb=>{
+          if(!thumb || thumb===wv.thumbUrl) return;
+          wv.thumbUrl=thumb;
+          const el=cg.querySelector(`[data-wv-id="${wv.id}"]`);
+          if(el) el.style.cssText=bg(thumb);
+        });
+      }
+    });
+    sb.querySelector("[data-go-upload]")?.addEventListener("click", ()=>{
+      body.querySelectorAll("#srcTabs [data-src]").forEach(x=>{x.className="btn ghost sm";});
+      const lb = body.querySelector('#srcTabs [data-src="local"]'); if(lb) lb.className="btn primary sm";
+      renderLocal("whole");
+    });
+  }
+  function renderLocal(defaultPurpose){
+    let purpose = defaultPurpose || "parse";
+    sb.innerHTML = `<div id="parseProxyBanner"></div><div class="banner" style="margin-bottom:10px"><span>⬆️</span><div>先选你想怎么用这段视频，再上传文件。</div></div>
+      <div class="upload-purpose-row">
+        <button type="button" class="upload-purpose-card${purpose==="whole"?" active":""}" data-purpose="whole">
+          <div class="up-title">整段使用</div>
+          <div class="up-desc">不拆段，保存到「整段视频」。可整段当作方式2主视频，或直播背景。</div>
+        </button>
+        <button type="button" class="upload-purpose-card${purpose==="parse"?" active":""}" data-purpose="parse">
+          <div class="up-title">解析成多个片段</div>
+          <div class="up-desc">自动识别精彩片段，整理后放进「我的片段」。</div>
+        </button>
+      </div>
+      <div id="uploadPanel"></div>`;
+    const panel = sb.querySelector("#uploadPanel");
+    const renderPanel = ()=>{
+      if(purpose==="whole"){
+        panel.innerHTML = `<div id="dz" style="border:2px dashed var(--grey-300);border-radius:12px;padding:30px;text-align:center;color:var(--grey)">
+          <div style="font-size:30px">🎬</div>
+          <div style="margin-top:6px">拖拽整段视频到此或 <label class="btn ghost sm" style="cursor:pointer">选择文件<input id="vfWhole" type="file" accept="video/*" style="display:none"></label></div>
+          <div class="muted" style="font-size:11.5px;margin-top:8px">上传后进入「整段视频」，不会出现在「我的片段」</div></div>
+          <div id="wholeBox" style="margin-top:12px"></div>`;
+        const dz = panel.querySelector("#dz"), vf = panel.querySelector("#vfWhole");
+        const onFile = f=>{ if(f) startWholeUpload(f); };
+        dz.ondragover = e => { e.preventDefault(); dz.style.borderColor="var(--teal)"; };
+        dz.ondragleave = () => { dz.style.borderColor="var(--grey-300)"; };
+        dz.ondrop = e => { e.preventDefault(); dz.style.borderColor="var(--grey-300)"; onFile(e.dataTransfer.files[0]); };
+        vf.onchange = () => onFile(vf.files[0]);
+      } else {
+        const prodOpts = (S.products.length ? S.products : [curProduct().id]).map(id=>{
+          const pr = D.PRODUCTS.find(x=>x.id===id) || curProduct();
+          return `<option value="${pr.id}"${pr.id===curProduct().id?" selected":""}>${esc(pr.ip)} · ${pr.id}</option>`;
+        }).join("");
+        panel.innerHTML = `<div class="row" style="gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
+            <span class="muted" style="font-size:12px">归属商品</span>
+            <select id="parseProd" style="padding:7px 10px;border:1px solid var(--grey-300);border-radius:8px;min-width:220px;font-size:12.5px">${prodOpts}</select>
+            <span class="muted" style="font-size:11px">解析后的片段会挂到该商品，并按相关度排序</span></div>
+          <div id="dz" style="border:2px dashed var(--grey-300);border-radius:12px;padding:30px;text-align:center;color:var(--grey)">
+          <div style="font-size:30px">⬆️</div>
+          <div style="margin-top:6px">拖拽视频到此或 <label class="btn ghost sm" style="cursor:pointer">选择文件<input id="vf" type="file" accept="video/*" style="display:none"></label></div>
+          <div class="muted" style="font-size:11.5px;margin-top:8px">MP4 ≤100MB · 5s–15min · ≥1080p · ≥24fps · H.264 · 经 Gemini 真实解析</div></div>
+          <div class="muted" style="font-size:11.5px;margin-top:10px">示例已含：<b>${esc(D.CLIPS_M1.original)}</b> → ${D.CLIPS_M1.shot_count} 个片段（见「我的片段」）</div>
+          <div class="muted" style="font-size:11px;margin-top:6px">解析进度显示在上方绿条区域，切换 Tab 不会消失。</div>`;
+        const dz = panel.querySelector("#dz"), vf = panel.querySelector("#vf");
+        const queueParse = f=>{ if(!f) return; resetParseFileInput(); startParse(f); };
+        dz.ondragover = e => { e.preventDefault(); dz.style.borderColor="var(--teal)"; };
+        dz.ondragleave = () => { dz.style.borderColor="var(--grey-300)"; };
+        dz.ondrop = e => { e.preventDefault(); dz.style.borderColor="var(--grey-300)"; queueParse(e.dataTransfer.files[0]); };
+        vf.onchange = ()=> queueParse(vf.files[0]);
+      }
+    };
+    sb.querySelectorAll(".upload-purpose-card").forEach(btn=>{
+      btn.onclick = ()=>{
+        if(isParsing()){ alert("正在解析视频，请稍候完成后再切换。"); return; }
+        purpose = btn.dataset.purpose;
+        sb.querySelectorAll(".upload-purpose-card").forEach(x=>x.classList.toggle("active", x.dataset.purpose===purpose));
+        renderPanel();
+      };
+    });
+    renderPanel();
+    checkParseProxy().then(ok=>{
+      const slot = sb.querySelector("#parseProxyBanner");
+      if(!slot || ok) return;
+      slot.innerHTML = `<div class="banner" style="margin-bottom:10px;border-color:#fbbf24;background:#fffbeb"><span>⚠️</span><div>视频解析需本地代理 <code>localhost:8789</code>（Gemini ModelHub）。请启动 <code>video_parse_proxy.py</code> 并保持 VPN/办公网，否则上传后无法拆段。</div></div>`;
+    });
+  }
+  async function startWholeUpload(file){
+    const okType = /^video\//.test(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name);
+    if(!okType){ alert("请上传视频文件（MP4/MOV/WebM）。"); return; }
+    if(file.size > 100*1024*1024){ alert("视频过大（>100MB），请压缩或换更短的视频。"); return; }
+    const box = sb.querySelector("#wholeBox");
+    if(!box) return;
+    box.innerHTML = `<div class="card" style="padding:14px"><div class="between"><b style="font-size:13px">保存中：${esc(file.name)}</b><span class="muted" style="font-size:12px">…</span></div>
+      <div class="meter" style="height:9px;margin:10px 0"><i style="width:40%"></i></div>
+      <div class="muted" style="font-size:12px">正在读取视频信息…</div></div>`;
+    try{
+      const objectUrl = URL.createObjectURL(file);
+      const dur = await readVideoDuration(objectUrl);
+      const thumb = await captureBestThumb(objectUrl, dur);
+      const wv = {
+        id: "wv_"+Date.now(), name: file.name, objectUrl,
+        thumbUrl: thumb || THUMB_PLACEHOLDER, duration_sec: dur,
+        uploadedAt: Date.now(), clip_source: "local_upload", clip_source_label: "整段视频",
+      };
+      S.wholeVideos.push(wv);
+      box.innerHTML = `<div class="card" style="padding:14px;border-color:var(--ready)">
+        <b style="color:var(--ready)">✓ 已保存到「整段视频」</b>
+        <div class="muted" style="font-size:12px;margin-top:6px">${esc(file.name)} · ${dur}s · 未拆段</div></div>`;
+      setTimeout(goWholeTab, 700);
+    }catch(err){
+      box.innerHTML = `<div class="card" style="padding:14px;border-color:#f3c2c2"><b style="color:var(--del)">保存失败</b><div class="muted" style="font-size:12px;margin-top:6px">请换一个视频重试。</div></div>`;
+    }
+  }
+  async function startParse(file){
+    const okType = /^video\//.test(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name);
+    if(!okType){ alert("请上传视频文件（MP4/MOV/WebM）。"); resetParseFileInput(); return; }
+    if(file.size > 100*1024*1024){ alert("视频过大（>100MB），请压缩或换更短的视频。"); resetParseFileInput(); return; }
+    clearParseTimer();
+    parseRunId++;
+    const runId = parseRunId;
+    const ui = showParseProgress(file.name, runId);
+    if(!ui){ alert("无法显示解析进度，请关闭弹窗后重试。"); return; }
+    const { setp, bar } = ui;
+    setp(4, "① 正在准备…");
+    const stages=[[12,"① 正在上传视频…"],[28,"② Gemini 正在读取画面…"],[48,"③ Gemini 正在识别精彩片段…"],[68,"④ 正在标出与商品的匹配度与推荐理由…"],[82,"⑤ 正在生成片段预览图…"]];
+    let si=0;
+    parseActiveTimer=setInterval(()=>{ if(runId!==parseRunId) return; if(si<stages.length){ setp(stages[si][0],stages[si][1]); si++; } }, 1100);
+    const finishRun=()=>{ if(runId===parseRunId) clearParseTimer(); };
+    try{
+      const proxyOk = await checkParseProxy();
+      if(runId!==parseRunId) return;
+      if(!proxyOk){
+        finishRun();
+        parseDock.innerHTML=`<div class="card" style="padding:14px;border-color:#f3c2c2"><b style="color:var(--del)">解析代理未启动</b>
+          <div class="muted" style="font-size:12px;margin:8px 0">请先运行 <code>video_parse_proxy.py</code>（localhost:8789），并保持 VPN/办公网。</div>
+          <button class="btn ghost sm" data-retry-proxy>重试</button></div>`;
+        parseDock.querySelector("[data-retry-proxy]")?.addEventListener("click", ()=>startParse(file));
+        resetParseFileInput();
+        return;
+      }
+      const productId = sb.querySelector("#parseProd")?.value || curProduct().id;
+      const objectUrl = URL.createObjectURL(file);
+      const srcIdx = 90;
+      const prompt = buildParsePrompt(file, srcIdx);
+      setp(8, "① 正在读取视频文件…");
+      const dataUrl = await readFileAsDataURL(file);
+      if(runId!==parseRunId) return;
+      setp(15, "② 正在提交 Gemini 解析…");
+      const resp = await fetch(PARSE_PROXY, { method:"POST",
+        headers:{ "Content-Type":"application/json", "X-Demo-Token":PARSE_TOKEN },
+        body: JSON.stringify({ log_id:"seller_demo_"+Date.now(), prompt, media:[{ name:file.name, mime_type:file.type||"video/mp4", data_url:dataUrl }] }) });
+      if(runId!==parseRunId) return;
+      const raw = await resp.text(); let data={}; try{ data=raw?JSON.parse(raw):{}; }catch(e){ data={}; }
+      if(!resp.ok){ const d=data.error&&data.error.detail?(" · "+data.error.detail):""; throw new Error(((data.error&&data.error.message)||("HTTP "+resp.status))+d); }
+      const text = parseExtractText(data); if(!text) throw new Error("视频没能识别出内容，请换个视频重试。");
+      const parsed = parseJsonLoose(text);
+      finishRun();
+      setp(90, "⑤ 正在生成片段预览图…");
+      const newClips = await normalizeParsedClips(parsed, srcIdx, objectUrl, productId);
+      if(runId!==parseRunId) return;
+      if(!newClips.length) throw new Error("没有识别到可用片段。");
+      S.uploadedClips = S.uploadedClips.concat(newClips);
+      setp(100, `✅ Gemini 解析完成，新增 <b>${newClips.length}</b> 个片段（已按相关度排序）`);
+      if(bar) bar.style.background = "var(--ready)";
+      resetParseFileInput();
+      setTimeout(()=>{ if(runId===parseRunId){ hideParseProgress(); goClipsTab(); } }, 1200);
+    }catch(err){
+      if(runId!==parseRunId) return;
+      finishRun();
+      const msg = err && err.message ? err.message : "未知错误";
+      parseDock.innerHTML=`<div class="card" style="padding:14px;border-color:#f3c2c2">
+        <b style="color:var(--del)">解析失败</b>
+        <div class="muted" style="font-size:12px;margin:8px 0;line-height:1.6">${esc(msg)}</div>
+        <div class="muted" style="font-size:11.5px;margin-bottom:8px">请确认 <code>localhost:8789</code> 代理已启动、VPN/办公网可用，再重试。</div>
+        <div class="row" style="gap:8px;margin-top:8px"><button class="btn ghost sm" data-retry>重试</button><button class="btn primary sm" data-clips>使用已有片段</button></div></div>`;
+      parseDock.querySelector("[data-retry]")?.addEventListener("click", ()=>{ resetParseFileInput(); startParse(file); });
+      parseDock.querySelector("[data-clips]")?.addEventListener("click", ()=>{ hideParseProgress(); goClipsTab(); });
+      resetParseFileInput();
+    }
+  }
+  const tabs = { clips:()=>renderClips("",""), whole:renderWholeVideos, local:()=>renderLocal("") };
+  body.querySelectorAll("#srcTabs [data-src]").forEach(b=>b.onclick=()=>{
+    body.querySelectorAll("#srcTabs [data-src]").forEach(x=>{x.className="btn ghost sm";});
+    b.className="btn primary sm"; tabs[b.dataset.src]();
+  });
+  renderClips("","");
+}
+// ---------------- 话术：整段编辑 + 可删 tag（hook/body/cta） ----------------
+const TAG_LABEL = { hook:"开场", body:"展开", cta:"促单" };
+function scriptFullText(sc){
+  normalizeScript(sc);
+  return (sc.script && sc.script.parts || []).map(p=>p.text||"").join(" ").trim();
+}
+function scriptWordCount(text){
+  const t = (text||"").trim();
+  if(!t) return 0;
+  const en = (t.match(/[A-Za-z']+/g) || []).length;
+  const zh = (t.match(/[\u4e00-\u9fa5]/g) || []).length;
+  if(zh && !en) return zh;
+  if(en && !zh) return en;
+  return en + zh;
+}
+function scriptEstSec(text, lang){
+  const wc = scriptWordCount(text);
+  if(!wc) return 0;
+  const wpm = (lang==="en" || lang==="es") ? 150 : 220;
+  return Math.max(1, Math.ceil(wc / wpm * 60));
+}
+function formatDurSec(sec){
+  const m = Math.floor(sec/60), s = sec % 60;
+  return m + ":" + String(s).padStart(2,"0");
+}
+function scriptStatsLabel(sc){
+  const text = scriptFullText(sc);
+  const wc = scriptWordCount(text);
+  const sec = scriptEstSec(text, S.language);
+  if(sc.script) sc.script.dur = formatDurSec(sec);
+  const unit = (S.language==="en"||S.language==="es") ? "词" : "字";
+  const target = sc._targetDurSec || (sc.method===2 ? Math.max(30, sc.clip?.duration_sec||30) : 15);
+  return `${wc} ${unit} · 预计 ~${formatDurSec(sec)} · 目标 ${target}s`;
+}
+function openRegenModal(sc, i, box){
+  const defSec = sc.method===2 ? Math.max(30, sc.clip?.duration_sec||30) : (sc._targetDurSec || 15);
+  const body = el("div");
+  body.innerHTML = `<div class="kv-label">补充建议（选填）</div>
+    <textarea id="rgHint" rows="3" placeholder="如：更强调解压手感、限时促单语气…" style="width:100%;padding:10px;border:1px solid var(--grey-300);border-radius:8px;font-family:inherit;box-sizing:border-box"></textarea>
+    <div class="kv-label" style="margin-top:12px">目标时长（秒）</div>
+    <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
+      <input id="rgSec" type="number" min="10" max="60" value="${defSec}" style="width:80px;padding:8px;border:1px solid var(--grey-300);border-radius:8px"${sc.method===2?" disabled":""}>
+      <span class="muted" style="font-size:12px">Demo 默认 15s · 可填 10–60 · 方式2 跟随 clip 时长（≥30s）</span>
+    </div>`;
+  const foot = el("div","row"); foot.style.cssText="gap:8px;justify-content:flex-end";
+  foot.innerHTML = `<button class="btn ghost sm" data-x>取消</button><button class="btn primary sm" data-go>开始重新生成</button>`;
+  const dlg = modal("重新生成话术", body, foot);
+  foot.querySelector("[data-x]").onclick = dlg.close;
+  foot.querySelector("[data-go]").onclick = ()=>{
+    const hint = (body.querySelector("#rgHint")?.value||"").trim();
+    let sec = parseInt(body.querySelector("#rgSec")?.value, 10) || defSec;
+    sec = Math.max(10, Math.min(60, sec));
+    if(sc.method===2) sec = Math.max(30, sc.clip?.duration_sec||30);
+    sc._pendingGenOpts = { hint, targetSec: sec };
+    dlg.close();
+    runScriptGenerate(box, sc, i, "✨ 正在重新生成…", sc._pendingGenOpts);
+  };
+}
+function buildGeneratePayload(sc, opts={}){
+  const p = curProduct();
+  let targetSec = opts.targetSec;
+  if(!targetSec) targetSec = sc.method===2 ? Math.max(30, sc.clip?.duration_sec||30) : (sc._targetDurSec || 15);
+  targetSec = Math.max(10, Math.min(60, targetSec));
+  if(sc.method===2) targetSec = Math.max(30, sc.clip?.duration_sec||targetSec);
+  sc._targetDurSec = targetSec;
+  const clip = sc.clip || {};
+  return {
+    language: S.language || "en",
+    target_sec: targetSec,
+    merchant_hint: (opts.hint || "").trim(),
+    current_script: scriptFullText(sc) || "",
+    scene: {
+      method: sc.method || 1,
+      sp_key: sc.spKey || sc.title || "",
+      sp_value: sc.spValue || "",
+      title: sc.title || "",
+      clip: {
+        title: clip.title || "",
+        visual_content: clip.visual_content || clip.visual || "",
+        asr_content: clip.asr_content || clip.asr || "",
+      },
+    },
+    product: {
+      name: p.name || "",
+      ip: p.ip || "",
+      price: p.price || "",
+    },
+    avatar: S.avatar ? {
+      name: S.avatar.name || "",
+      persona: S.avatar.persona || "",
+      desc: S.avatar.desc || "",
+    } : {},
+  };
+}
+async function fetchGenerateScript(sc, opts={}){
+  const resp = await fetch(GENERATE_PROXY, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Demo-Token": PARSE_TOKEN },
+    body: JSON.stringify(buildGeneratePayload(sc, opts)),
+  });
+  const data = await resp.json().catch(()=>({}));
+  if(!resp.ok) throw new Error(data.error?.message || ("HTTP "+resp.status));
+  const text = (data.text || "").trim();
+  if(!text) throw new Error("Empty script from generator");
+  const parts = (data.parts && data.parts.length)
+    ? data.parts.map(p=>({ tag:(p.tag||"").trim(), text:(p.text||"").trim() })).filter(p=>p.text)
+    : [{ tag:"", text }];
+  const estSec = data.est_sec || scriptEstSec(text, S.language);
+  return { dur: formatDurSec(estSec), parts, _fromApi: true };
+}
+function prefetchZhRef(sc){
+  const enText = scriptFullText(sc);
+  if(!enText || (sc._zhRef && sc._zhRefFor === enText)) return;
+  translateToChinese(enText, sc, { fast: true }).then(zh=>{
+    if(!zh || scriptFullText(sc) !== enText) return;
+    sc._zhRef = zh;
+    sc._zhRefFor = enText;
+  }).catch(()=>{});
+}
+function genSceneScript(sc, i, opts={}){
+  const p = curProduct(); const li = ensureLiveInfo(p);
+  const key = sc.spKey || sc.title || "this product";
+  const val = sc.spValue || "";
+  const hint = (opts.hint||"").trim();
+  let targetSec = opts.targetSec;
+  if(!targetSec) targetSec = sc.method===2 ? Math.max(30, sc.clip?.duration_sec||30) : 15;
+  targetSec = Math.max(10, Math.min(60, targetSec));
+  if(sc.method===2) targetSec = Math.max(30, sc.clip?.duration_sec||targetSec);
+  sc._targetDurSec = targetSec;
+  let hook = sc.method===2 ? `Okay, look at this up close…` : `Hey everyone — let's talk about ${key}.`;
+  let body = val ? val.split(/[.!?。！？\n]/).filter(Boolean).slice(0,2).join(". ") + "." : (sc.method===2
+    ? `See that calm, quiet face? Super soft and Q-bouncy — perfect little buddy energy.`
+    : `This is one of the favorites from ${p.ip}. ${li.audience?"Great for "+li.audience+". ":""}Each one feels a little different.`);
+  let cta = `Tap the link if you want one — this batch goes fast.`;
+  if(/促单|逼单|限时|urgency|flash/i.test(hint)) cta = `Only a few left in the basket — grab yours before they're gone.`;
+  if(/软|解压|squish|soft|stress/i.test(hint)) body = val || `Super soft, beanbag-grade fill you can squeeze — instant stress relief without taking much desk space.`;
+  if(hint && !/促单|逼单|限时|软|解压|squish|soft|stress/i.test(hint)) body = (val||body) + " " + hint;
+  const full = [hook, body, cta].filter(Boolean).join(" ");
+  return { dur: formatDurSec(scriptEstSec(full, S.language)), parts:[{ tag:"", text: full }] };
+}
+function scriptEditorHtml(sc){
+  normalizeScript(sc);
+  const text = scriptFullText(sc);
+  return `<span class="script-text" contenteditable="true">${esc(text)}</span>`;
+}
+function readScriptFromEditor(ed){
+  return [{ tag:"", text: ed.textContent.trim() }];
+}
+function runScriptBusyUI(box, label){
+  if(!box) return;
+  box.innerHTML = `<div class="divider" style="margin:8px 0"></div>
+    <div class="row between" style="margin-bottom:6px"><b style="font-size:12.5px">话术</b><span class="muted" style="font-size:11.5px">${esc(label)}</span></div>
+    <div class="meter" style="height:8px"><i class="sgbar indeterminate"></i></div>
+    <div class="muted sgstage" style="font-size:11px;margin-top:5px">正在调用 GPT-5.5 生成…通常 5–20 秒</div>`;
+}
+async function runScriptGenerate(box, sc, i, label, opts={}){
+  if(!box || sc._scriptBusy) return;
+  sc._scriptBusy = true;
+  runScriptBusyUI(box, label);
+  const pending = opts && Object.keys(opts).length ? opts : (sc._pendingGenOpts || {});
+  try{
+    sc.script = await fetchGenerateScript(sc, pending);
+    sc._zhRef = null;
+    sc._zhRefFor = null;
+    sc._scriptGenFallback = false;
+    prefetchZhRef(sc);
+  }catch(e){
+    sc.script = genSceneScript(sc, i, pending);
+    sc._scriptGenFallback = true;
+    sc._zhRef = null;
+    sc._zhRefFor = null;
+  }
+  sc._pendingGenOpts = null;
+  sc._scriptBusy = false;
+  window.__dirty = true;
+  render();
+}
+function bindScriptEditor(box, sc, i){
+  const ed = box.querySelector(".script-editor");
+  if(!ed) return;
+  ed.addEventListener("input", ()=>{
+    if(!sc.script) sc.script = { dur:"0:50", parts:[] };
+    sc.script.parts = readScriptFromEditor(ed);
+    sc._zhRef = null;
+    sc._zhRefFor = null;
+    const fold = box.querySelector(".zh-ref-fold"); if(fold) fold.style.display = "none";
+    window.__dirty = true;
+    updateScriptStatsUI(box);
+  });
+  box.querySelector(".regen")?.addEventListener("click", ()=>openRegenModal(sc, i, box));
+  box.querySelector(".clrScript")?.addEventListener("click", ()=>{ sc.script={ dur:"0:00", parts:[{tag:"", text:""}] }; sc._zhRef=null; sc._zhRefFor=null; render(); window.__dirty=true; });
+  box.querySelector(".trScript")?.addEventListener("click", ()=> toggleZhRefFold(box, sc));
+}
+function updateScriptStatsUI(box){
+  const el = box && box.querySelector(".script-stats");
+  if(!el) return;
+  const sc = S.scenes[S.buildSceneIdx];
+  if(!sc || !sc.script) return;
+  el.textContent = scriptStatsLabel(sc);
+}
+function isLikelyFullChineseTranslation(zh, en){
+  if(!zh || !en) return false;
+  const zhChars = (zh.match(/[\u4e00-\u9fa5]/g) || []).length;
+  const enWordsIn = (en.match(/[A-Za-z']+/g) || []).length;
+  const enWordsOut = (zh.match(/[A-Za-z']+/g) || []).length;
+  if(zhChars < 8) return false;
+  if(enWordsIn > 4 && enWordsOut > Math.max(3, Math.floor(enWordsIn * 0.2))) return false;
+  return true;
+}
+async function translateToChinese(enText, sc, opts={}){
+  const fast = !!opts.fast;
+  const resp = await fetch(TRANSLATE_PROXY, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "X-Demo-Token":PARSE_TOKEN },
+    body: JSON.stringify({ text: enText, fast }),
+  });
+  const data = await resp.json().catch(()=>({}));
+  if(resp.ok && data.translation){
+    const zh = data.translation;
+    if(fast || isLikelyFullChineseTranslation(zh, enText)) return zh;
+    if(!fast && !isLikelyFullChineseTranslation(zh, enText)){
+      const resp2 = await fetch(TRANSLATE_PROXY, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "X-Demo-Token":PARSE_TOKEN },
+        body: JSON.stringify({ text: enText, fast: false }),
+      });
+      const data2 = await resp2.json().catch(()=>({}));
+      if(resp2.ok && data2.translation && isLikelyFullChineseTranslation(data2.translation, enText))
+        return data2.translation;
+    }
+    return zh;
+  }
+  throw new Error(data.error?.message || ("HTTP "+resp.status));
+}
+async function translateToChineseSafe(enText, sc, opts={}){
+  try{
+    return await translateToChinese(enText, sc, opts);
+  }catch(e){
+    return demoZhFallback(enText, sc);
+  }
+}
+function demoZhFallback(enText, sc){
+  const p = curProduct(); const li = ensureLiveInfo(p);
+  const key = sc.spKey || sc.title || "这款商品";
+  const parts = [];
+  if(/hey|okay|look|everyone/i.test(enText)) parts.push("各位好，");
+  parts.push(`今天重点聊聊「${key}」。`);
+  if(sc.spValue){
+    const v = sc.spValue.replace(/\s+/g," ").trim();
+    if(/squeeze|hug|bounce|desk buddy|beanbag|soft|squishy/i.test(v))
+      parts.push("豆袋级填充，随便捏随便抱，松手就回弹，是办公桌上超治愈的小陪伴，表情安静不闹腾。");
+    if(/collectible|blind box|surprise|gift|display|round face|big eyes/i.test(v))
+      parts.push("圆圆脸大眼睛，盲盒每款都不一样，送礼或犒劳自己都很合适。");
+    if(/calm|quiet|companion|decompress|stress/i.test(v))
+      parts.push("软萌 Q 弹，安静陪伴不吵闹，忙完捏一捏很解压。");
+  } else if(/soft|squishy|buddy|calm|collectible|blind box/i.test(enText)){
+    parts.push("手感软萌，是很多粉丝喜欢的治愈系小物。");
+  }
+  if(/tap the basket|live price|live-only|deal today/i.test(enText)){
+    parts.push("喜欢就点购物袋下单，这批售完即止。");
+  } else if(/tap the link|add to cart/i.test(enText)){
+    parts.push("喜欢就点链接下单，这批售完即止。");
+  }
+  const out = parts.join("");
+  if(isLikelyFullChineseTranslation(out, enText)) return out;
+  return out + "【演示离线参考】完整中文请连接翻译服务后重试；开播仍用上方英文。";
+}
+async function toggleZhRefFold(box, sc){
+  const fold = box.querySelector(".zh-ref-fold");
+  const body = box.querySelector(".zh-ref-body");
+  if(!fold || !body) return;
+  const open = fold.style.display !== "none";
+  if(open){ fold.style.display = "none"; return; }
+  fold.style.display = "block";
+  const enText = scriptFullText(sc);
+  if(!enText){ body.textContent = "请先生成或填写英文话术。"; return; }
+  if(sc._zhRef && sc._zhRefFor === enText){ body.textContent = sc._zhRef; return; }
+  body.textContent = "正在生成中文参考…";
+  sc._zhRef = await translateToChineseSafe(enText, sc, { fast: true });
+  sc._zhRefFor = enText;
+  body.textContent = sc._zhRef;
+}
+function normalizeScript(sc){
+  if(!sc.script) return null;
+  if(sc.script.parts) return sc.script;
+  if(sc.script.segs){
+    sc.script = { dur: sc.script.dur||"0:50", parts: sc.script.segs.map(s=>({ tag:(s.seg||"").toLowerCase(), text: s.txt||"" })) };
+  }
+  return sc.script;
+}
+function renderSceneScript(box, sc, i){
+  if(!box) return;
+  if(sc._scriptBusy && !sc.script){
+    box.innerHTML = `<div class="divider" style="margin:8px 0"></div><div class="row between" style="margin-bottom:6px"><b style="font-size:12.5px">话术</b><span class="muted" style="font-size:11.5px">✨ 处理中…</span></div><div class="meter" style="height:8px"><i style="width:60%"></i></div>`;
+    return;
+  }
+  if(sc.method===2 && !sc.script){
+    if(!sc.clip){ box.innerHTML = `<div class="divider" style="margin:8px 0"></div><div class="tipcard" style="font-size:12px">选好你的视频片段后，会<b>自动解析出口播话术</b>，可直接编辑。</div>`; return; }
+    runScriptGenerate(box, sc, i, "✨ 正在从你的视频解析话术…");
+    return;
+  }
+  if(sc.method===1 && !sc.script){
+    box.innerHTML = `<div class="divider" style="margin:8px 0"></div>
+      <div class="row between" style="margin-bottom:6px"><b style="font-size:12.5px">话术</b><span class="muted" style="font-size:11.5px">配好背景后生成</span></div>
+      <button class="btn primary sm genScript" style="width:100%">✨ 生成脚本</button>
+      <div class="muted" style="font-size:11px;margin-top:5px">数字人讲解的话术，配好画面背景后点这里自动生成，生成后可再编辑。</div>`;
+    box.querySelector(".genScript").onclick = ()=>runScriptGenerate(box, sc, i, "✨ 正在生成话术…");
+    return;
+  }
+  normalizeScript(sc);
+  const fallbackTip = sc._scriptGenFallback
+    ? `<div class="banner" style="margin-bottom:8px;border-color:#fbbf24;background:#fffbeb"><span>⚠️</span><div>话术服务未连接，已用本地演示稿。请启动 <code>video_parse_proxy.py</code>（8789）并 source Aicolate 凭证后重试。</div></div>`
+    : "";
+  box.innerHTML = `${fallbackTip}
+    <div class="divider" style="margin:8px 0"></div>
+    <div class="row between" style="margin-bottom:6px;flex-wrap:wrap;gap:6px">
+      <b style="font-size:12.5px">话术（一整段，可改）</b>
+      <span class="muted script-stats" style="font-size:11.5px">${esc(scriptStatsLabel(sc))}</span>
+    </div>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:8px">
+      <button class="btn primary sm genScript">✨ 生成脚本</button>
+      <button class="btn ghost sm regen">✨ 重新生成</button>
+      <button class="btn ghost sm clrScript">清空</button>
+      <button class="btn ghost sm trScript">🌐 译成中文参考</button>
+    </div>
+    <div class="script-editor" tabindex="0">${scriptEditorHtml(sc)}</div>
+    <div class="zh-ref-fold" style="display:none;margin-top:10px">
+      <div class="banner" style="margin-bottom:8px"><span>🌐</span><div>中文仅供参考，<b>开播仍用上方英文话术</b>，不会替换开播内容。</div></div>
+      <div class="tipcard zh-ref-body" style="font-size:13px;line-height:1.75;white-space:pre-wrap"></div>
+    </div>
+    <div class="muted" style="font-size:11px;margin-top:6px">纯文本一整段，可直接改。按当前 ${S.language.toUpperCase()} 语速估算时长；「重新生成」可填建议与目标时长（10–60s，默认 15s）。生成走 GPT-5.5（需 8789 代理）。</div>`;
+  box.querySelector(".genScript").onclick = ()=>{ sc._pendingGenOpts = null; runScriptGenerate(box, sc, i, "✨ 正在生成话术…"); };
+  bindScriptEditor(box, sc, i);
+}
+
+function overlayThumb(ov){
+  if(ov.img) return bg(ov.img);
+  if(ov.type==="price"||ov.type==="flash"||ov.type==="announce") return "background:linear-gradient(135deg,#fe2c55,#ff6b6b);";
+  if(ov.type==="ship") return "background:linear-gradient(135deg,#0a8a8a,#16a34a);";
+  if(ov.type==="sale") return "background:linear-gradient(135deg,#d97706,#f59e0b);";
+  return "background:var(--grey-200);";
+}
+function overlayPreviewLabel(ov){
+  if(ov.text) return ov.text.length>12?ov.text.slice(0,11)+"…":ov.text;
+  return ov.label;
+}
+function ensureOvLayout(ov, def){
+  if(!ov.layout) ov.layout = { leftPct: def.leftPct||10, topPct: def.topPct||10, widthPct: def.widthPct||30, scale: def.scale||1 };
+  return ov.layout;
+}
+function findOverlayById(id, scope){
+  if(scope==="global") return S.globalOverlays.find(o=>o.id===id);
+  const sc = S.scenes[S.buildSceneIdx];
+  return sc && sc.overlays && sc.overlays.find(o=>o.id===id);
+}
+function overlayDragHtml(ov, scope, def){
+  if(!ov.selected) return "";
+  const ly = ensureOvLayout(ov, def);
+  const sel = (S.previewSel && S.previewSel.id===ov.id) ? " preview-sel" : "";
+  const z = scope==="scene" ? 14 : 12;
+  const inner = ov.img
+    ? `<div class="op-checker" style="width:100%;line-height:0;border-radius:4px;overflow:hidden"><img src="${encodeURI(ov.img)}" alt="" style="width:100%;display:block;pointer-events:none"></div>`
+    : `<span style="font-size:10px;padding:4px 8px;background:rgba(254,44,85,.92);color:#fff;border-radius:6px;display:inline-block">${esc(overlayPreviewLabel(ov))}</span>`;
+  return `<div class="dragEl overlay-drag${sel}" data-ov-id="${esc(ov.id)}" data-scope="${scope}" style="position:absolute;left:${ly.leftPct}%;top:${ly.topPct}%;width:${ly.widthPct}%;transform:scale(${ly.scale});transform-origin:top left;cursor:move;touch-action:none;z-index:${z}">${inner}<span class="rzHandle"></span></div>`;
+}
+function sceneOverlayInheritHint(sc){
+  const n = (sc.overlays||[]).filter(o=>o.selected).length;
+  return n ? `${n} 个已启用` : "未设置 · 沿用全场";
+}
+function renderOverlayPicker(container, list, scope, onChange){
+  container.innerHTML = "";
+  if(scope==="scene"){
+    const sc = S.scenes[S.buildSceneIdx];
+    const hint = el("div","muted","");
+    hint.style.cssText = "font-size:11.5px;margin-bottom:8px;line-height:1.5";
+    hint.innerHTML = sc && (sc.overlays||[]).some(o=>o.selected)
+      ? "本卖点已设专属贴片，会在<b>全场贴片之上</b>叠加显示，可拖到不重叠位置。"
+      : "尚未单独设置时，<b>沿用上方全场通用贴片</b>。";
+    container.appendChild(hint);
+  }
+  const row = el("div","row"); row.style.cssText = "gap:8px;flex-wrap:wrap";
+  list.forEach(ov=>{
+    const card = el("div", "overlay-pick" + (ov.selected?" selected":""));
+    const thumbCls = ov.img ? "op-thumb op-checker" : "op-thumb";
+    card.innerHTML = `<div class="${thumbCls}" style="${overlayThumb(ov)};background-size:contain;background-repeat:no-repeat;background-position:center;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;padding:4px">${ov.img?"":esc(overlayPreviewLabel(ov))}</div>
+      <div class="op-meta"><b>${esc(ov.label)}</b><div class="op-scope">${scope==="global"?"全场":"本卖点"} · ${ov.selected?"已显示":"已隐藏"}</div></div>`;
+    card.onclick = ()=>{ ov.selected=!ov.selected; onChange(); };
+    row.appendChild(card);
+  });
+  container.appendChild(row);
+  const add = el("button", "btn ghost sm", "+ 选择贴片");
+  add.style.marginTop = "8px";
+  add.onclick = ()=>openOverlayTemplatePicker(list, scope, onChange);
+  container.appendChild(add);
+}
+function openOverlayTemplatePicker(list, scope, onChange){
+  const tpls = OVERLAY_TEMPLATES.filter(t=>t.scope===scope);
+  const recs = (D.OVERLAY_RECOMMENDS || []).filter(r=> scope==="scene" ? true : (r.type==="logo"||r.type==="sale"||r.type==="ship"||r.type==="announce"||r.type==="flash"));
+  const body = el("div","overlay-picker-modal");
+  body.innerHTML = `
+    <div class="banner" style="margin-bottom:10px"><span>✦</span><div>前景贴片叠在画面<b>最前面</b>，请选透明底 PNG，避免挡住数字人和商品。</div></div>
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:8px">平台推荐 · 适合本卖点</div>
+    <div class="overlay-rec-grid" id="recGrid"></div>
+    <div class="divider" style="margin:12px 0"></div>
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:8px">常用模板</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap" id="tplGrid"></div>
+    <div class="divider" style="margin:12px 0"></div>
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:6px">上传自己的贴片</div>
+    <div class="tipcard" style="font-size:12px;margin-bottom:10px;line-height:1.65">
+      ✓ 必须是<b>透明背景 PNG</b>（带透明通道），叠在直播最前面<br>
+      ✓ 文字够大、对比清晰；建议放在 9:16 安全区内<br>
+      ✗ 不要用白底商品图、JPG、满屏大图；勿遮挡人脸和主商品
+    </div>
+    <div id="ovDrop" class="ov-drop-zone">拖拽透明 PNG 到此，或 <label class="btn ghost sm" style="cursor:pointer;margin-left:6px">选择文件<input type="file" accept="image/png" id="ovUp" style="display:none"></label>
+      <button class="btn ghost sm" id="ovMatte" type="button" style="margin-left:8px" disabled title="请先上传 PNG">✨ 一键抠透明（Demo）</button></div>
+    <div id="ovPreview" class="muted" style="font-size:11.5px;margin-top:8px;display:none"></div>
+    <div id="ovErr" class="muted" style="font-size:11.5px;margin-top:6px;color:var(--del);display:none"></div>`;
+  const recGrid = body.querySelector("#recGrid");
+  recs.forEach(r=>{
+    const card = el("div","overlay-rec-card");
+    card.innerHTML = `<div class="overlay-rec-thumb op-checker" style="${bg(r.img)}"></div><div class="overlay-rec-meta"><b>${esc(r.label)}</b><span class="muted">${esc(r.text||"")}</span></div>`;
+    card.onclick = ()=>{
+      list.push({ id:newOverlayId(), type:r.type, label:r.label, selected:true, img:r.img, text:r.text||"", layout:{ leftPct:52, topPct:14, widthPct:34, scale:1 } });
+      dlg.close(); onChange();
+    };
+    recGrid.appendChild(card);
+  });
+  const grid = body.querySelector("#tplGrid");
+  tpls.forEach(t=>{
+    const b = el("button","btn ghost sm", t.label);
+    b.onclick = ()=>{
+      const p = curProduct();
+      list.push({ id:newOverlayId(), type:t.type, label:t.label, selected:true,
+        img: t.type==="product"?p.img:null, text: t.type==="announce"?"LIVE DEAL · 对标真人直播间公告栏·调研中":"" });
+      dlg.close(); onChange();
+    };
+    grid.appendChild(b);
+  });
+  const foot = el("div"); foot.innerHTML = `<button class="btn ghost sm" data-x>关闭</button>`;
+  const dlg = modal("选择展示贴片", body, foot, "modal-wide");
+  foot.querySelector("[data-x]").onclick = dlg.close;
+  const showErr = (msg)=>{ const e=body.querySelector("#ovErr"); e.style.display=msg?"block":"none"; e.textContent=msg||""; };
+  let pendingPngUrl = null;
+  let pendingPngName = "";
+  const matteBtn = body.querySelector("#ovMatte");
+  const previewEl = body.querySelector("#ovPreview");
+  const syncMatte = ()=>{
+    if(matteBtn) matteBtn.disabled = !pendingPngUrl;
+    if(previewEl){
+      if(pendingPngUrl){
+        previewEl.style.display = "block";
+        previewEl.innerHTML = `已选：<b>${esc(pendingPngName)}</b> · 可点「一键抠透明」或直接关闭弹框后从模板添加`;
+      } else previewEl.style.display = "none";
+    }
+  };
+  const stagePng = (f)=>{
+    if(!f) return;
+    if(!/\.png$/i.test(f.name) && f.type!=="image/png"){ showErr("请上传透明背景 PNG 文件。"); return; }
+    showErr("");
+    pendingPngUrl = URL.createObjectURL(f);
+    pendingPngName = f.name;
+    syncMatte();
+  };
+  const addPng = (f)=>{
+    if(!f) return;
+    if(!/\.png$/i.test(f.name) && f.type!=="image/png"){ showErr("请上传透明背景 PNG 文件。"); return; }
+    showErr("");
+    list.push({ id:newOverlayId(), type:"custom", label:"自定义", selected:true, img:URL.createObjectURL(f), text:"" });
+    dlg.close(); onChange();
+  };
+  body.querySelector("#ovUp").onchange = (e)=> stagePng(e.target.files[0]);
+  body.querySelector("#ovMatte")?.addEventListener("click", ()=>{
+    if(!pendingPngUrl){ showErr("请先上传 PNG，再点一键抠透明。"); return; }
+    list.push({ id:newOverlayId(), type:"custom", label:"自定义（已抠图）", selected:true, img: pendingPngUrl, text:"" });
+    pendingPngUrl = null; pendingPngName = "";
+    dlg.close(); onChange();
+  });
+  syncMatte();
+  const dz = body.querySelector("#ovDrop");
+  dz.ondragover = e=>{ e.preventDefault(); dz.classList.add("drag"); };
+  dz.ondragleave = ()=> dz.classList.remove("drag");
+  dz.ondrop = e=>{ e.preventDefault(); dz.classList.remove("drag"); stagePng(e.dataTransfer.files[0]); };
+}
+
+function renderBuild() {
+  syncScenesFromSellingPoints();
+  const p = curProduct();
+  const didPlatformPrefill = platformPrefillSellingPoints(p);
+  if(didPlatformPrefill) syncScenesFromSellingPoints();
+  const wrap = el("div","three-col build-layout");
+  const left = el("div","col");
+  left.innerHTML = `<div class="col-h">Scene 列表</div><div class="col-b"><div class="muted" style="font-size:11.5px;margin-bottom:8px">主推 · <b>${esc(p.ip)}</b></div><div id="sceneNav"></div>
+    <button class="btn ghost sm" id="addScene" style="margin-top:8px">+ 增加卖点 Scene</button></div>`;
+  const mid = el("div","col");
+  mid.innerHTML = `<div class="col-h">Set up scenes &amp; scripts <span class="muted" style="font-weight:500;font-size:12px">1 Scene = 1 卖点</span></div>
+    <div class="col-b">
+      <div class="banner" style="margin-bottom:10px"><span>✦</span><div>左侧每个 Scene 对应选品页的一条卖点。中间配<b>画面和话术</b>；右侧 Preview 调整<b>布局与贴片</b>（贴片只在右侧设置）。</div><span class="x">×</span></div>
+      <div id="sceneMain"></div>
+    </div>`;
+  const right = el("div","col");
+  right.innerHTML = `<div class="col-h">Preview &amp; Layout</div><div class="col-b">
+    <div class="preview916" id="pv" style="position:relative;overflow:hidden"></div>
+    <div id="layoutPanel" style="margin-top:10px"></div>
+    <div class="overlay-manage">
+      <div class="banner" style="margin:10px 0"><span>✦</span><div>贴片叠在画面最前层。未设本卖点专属时<b>沿用全场通用</b>；设了则在全场之上叠加，可拖开。</div></div>
+      <div class="overlay-section"><div class="overlay-section-h row between" style="flex-wrap:wrap;gap:6px"><span>全场通用贴片 <span class="chip">整场有效</span></span><span class="muted" style="font-size:11px;font-weight:500" id="globalOvCount"></span></div><div id="globalOv" class="row" style="gap:8px;flex-wrap:wrap"></div></div>
+      <div class="overlay-section"><div class="overlay-section-h row between" style="flex-wrap:wrap;gap:6px"><span>本卖点专属 <span class="chip" style="background:var(--teal-50);color:var(--teal)">★ 优先显示</span></span><span class="muted" style="font-size:11px;font-weight:500" id="sceneOvHint"></span></div><div id="sceneOv" class="row" style="gap:8px;flex-wrap:wrap"></div></div>
+    </div>
+    <div class="muted" style="font-size:11.5px;margin-top:8px" id="pvNote"></div></div>`;
+  wrap.appendChild(left); wrap.appendChild(mid); wrap.appendChild(right);
+
+  if(!S.scenes.length){
+    mid.querySelector("#sceneMain").innerHTML = `<div class="tipcard">还没有 Scene。请回<b>选品页</b>增加卖点，或点左侧「+ 增加卖点 Scene」。</div>`;
+  } else if(S.buildSceneIdx >= S.scenes.length) S.buildSceneIdx = 0;
+
+  const nav = left.querySelector("#sceneNav");
+  S.scenes.forEach((sc,i)=>{
+    const st = sceneStatus(sc);
+    const item = el("div", "scene-nav-item" + (i===S.buildSceneIdx?" active":""));
+    if(i===S.buildSceneIdx){
+      item.innerHTML = `<input class="scene-key-inline" value="${esc(sc.spKey||sc.title||("Scene "+(i+1)))}" placeholder="一句话卖点"><span class="tag ${st.c} st">${st.t}</span>`;
+      const inp = item.querySelector(".scene-key-inline");
+      inp.onclick = e=> e.stopPropagation();
+      inp.oninput = e=>{ updateSceneSellingPoint(sc,"key", e.target.value.trim()); refreshSceneNavTitles(); };
+    } else {
+      item.innerHTML = `<span class="scene-nav-title" style="font-weight:600;font-size:12.5px">${esc(sc.spKey||sc.title||("Scene "+(i+1)))}</span><span class="tag ${st.c} st">${st.t}</span>`;
+    }
+    item.onclick = ()=>{ S.buildSceneIdx=i; render(); };
+    nav.appendChild(item);
+  });
+  left.querySelector("#addScene").onclick = ()=>{
+    const pr = curProduct(); addSellingPoint(pr);
+    syncScenesFromSellingPoints();
+    S.buildSceneIdx = S.scenes.length-1;
+    render();
+  };
+
+  const sc = S.scenes[S.buildSceneIdx];
+  const main = mid.querySelector("#sceneMain");
+  if(sc){
+    const card = el("div","pcard");
+    if(didPlatformPrefill){
+      const pfBn = el("div","banner");
+      pfBn.style.marginBottom = "10px";
+      pfBn.innerHTML = `<span>✦</span><div>平台已根据商品信息生成<b>卖点 key / value 草稿</b>，你可直接修改。<span class="x">×</span></div>`;
+      pfBn.querySelector(".x").onclick = ()=> pfBn.remove();
+      main.appendChild(pfBn);
+    }
+    if(S.buildSpSyncHint){
+      const syncBn = el("div","banner");
+      syncBn.style.marginBottom = "10px";
+      syncBn.innerHTML = `<span>✦</span><div>卖点已更新，并<b>同步到选品页</b>。若话术需要调整，建议点「重新生成」。<span class="x">×</span></div>`;
+      syncBn.querySelector(".x").onclick = ()=>{ S.buildSpSyncHint=false; syncBn.remove(); };
+      main.appendChild(syncBn);
+    }
+    card.innerHTML = `
+      <div class="between" style="margin-bottom:8px"><b>Scene · ${esc(sc.spKey||sc.title)}</b><span class="scDel" style="cursor:pointer;color:var(--del);font-size:12px">🗑 删除</span></div>
+      <div class="sp-kv-card" style="margin-bottom:10px">
+        <div class="sp-kv-row">
+          <div class="sp-key-col"><div class="kv-label">key</div><input class="buildSpKey sp-input" value="${esc(sc.spKey||"")}" placeholder="e.g. Soft & squishy texture"></div>
+          <div class="sp-val-col"><div class="kv-label">value</div><textarea class="buildSpVal sp-textarea" placeholder="Tell shoppers why this matters…" rows="2">${esc(sc.spValue||"")}</textarea></div>
+        </div>
+      </div>
+      <div class="row" style="gap:8px;margin-bottom:8px">
+        <label class="mopt"><input type="radio" name="m${sc.id}" ${sc.method===1?'checked':''} data-m="1"> 数字人讲</label>
+        <label class="mopt"><input type="radio" name="m${sc.id}" ${sc.method===2?'checked':''} data-m="2"> 用你的视频</label>
+      </div>
+      <div class="scSub"></div>
+      <div class="scScript"></div>`;
+    card.querySelector(".scDel").onclick = ()=>{
+      const pr = curProduct(); const idx = pr.liveInfo.sellingPoints.findIndex(s=>s.id===sc.sellingPointId);
+      if(idx>=0) removeSellingPoint(pr, idx); else { S.scenes = S.scenes.filter(x=>x.id!==sc.id); render(); }
+    };
+    card.querySelector(".buildSpKey").oninput = e=>{
+      updateSceneSellingPoint(sc,"key", e.target.value.trim());
+      card.querySelector(".between b").textContent = "Scene · " + (sc.spKey||sc.title||"未命名");
+      saveLiveInfo(curProduct());
+    };
+    card.querySelector(".buildSpVal").oninput = e=>{ updateSceneSellingPoint(sc,"value", e.target.value); saveLiveInfo(curProduct()); };
+    card.querySelectorAll('input[type=radio]').forEach(r=>r.onchange=()=>{
+      sc.method=+r.dataset.m; if(sc.method===1) sc.clip=null; sc.script=null; sc._scriptBusy=false; render();
+    });
+    const sub = card.querySelector(".scSub");
+    if(sc.method===1){
+      const icon = sc.bgType==="video"?"🎬":sc.bgType==="image"?"🖼":"🎨";
+      sub.innerHTML = `<div class="row" style="gap:8px;font-size:13px;align-items:center"><span class="muted">Background:</span> <b>${icon} ${esc(sc.bg||'Default')}</b> <span style="cursor:pointer;color:var(--teal)" data-bg>✏️ 换背景</span></div>`;
+      sub.querySelector("[data-bg]").onclick=()=>chooseBackground(sc);
+    } else if(sc.clip){
+      sub.innerHTML = `<div class="row" style="gap:8px"><span class="tag ${sc.clip.clip_type}">${clipTypeLabel(sc.clip.clip_type)}</span><span class="muted" style="font-size:12px;flex:1">${esc(sc.clip.visual_content)}</span><button class="btn ghost sm" data-change>更换</button></div>`;
+      sub.querySelector("[data-change]").onclick=()=>openSceneLibrary(sc);
+    } else {
+      sub.innerHTML = `<button class="btn primary sm" data-pick>+ 从素材库选片段</button>`;
+      sub.querySelector("[data-pick]").onclick=()=>openSceneLibrary(sc);
+    }
+    if(!sc.overlays || !sc.overlays.length) sc.overlays = defaultSceneOverlays(p);
+    renderSceneScript(card.querySelector(".scScript"), sc, S.buildSceneIdx);
+    main.appendChild(card);
+  }
+
+  const tf = o => `translate(calc(-50% + ${o.x||0}px), ${(o.y||0)}px) scale(${o.scale||1})`;
+  function stageBg(activeSc){
+    if(activeSc && activeSc.method===2 && activeSc.clip) return { style:bg(activeSc.clip.thumbUrl), label:"你的视频" };
+    const bgv = S.scenes.find(s=>s.bgType==="video" && s.bgClip);
+    if(bgv) return { style:bg(bgv.bgClip.thumbUrl), label:"视频背景" };
+    return { style:"background:linear-gradient(160deg,#2a1a3a,#3a2a1a)", label:"默认背景" };
+  }
+  function applyRecommendedLayout(){
+    S.layout.avatar = { x:0, y:-12, scale:0.88 };
+    const activeSc = S.scenes[S.buildSceneIdx];
+    if(activeSc && activeSc.overlays){
+      activeSc.overlays.forEach(o=>{
+        ensureOvLayout(o, {});
+        if(o.type==="product") Object.assign(o.layout, { leftPct:58, topPct:8, widthPct:28, scale:1 });
+        if(o.type==="announce") Object.assign(o.layout, { leftPct:50, topPct:40, widthPct:42, scale:1 });
+      });
+    }
+    S.globalOverlays.forEach(o=>{
+      ensureOvLayout(o, {});
+      if(o.type==="logo") Object.assign(o.layout, { leftPct:6, topPct:6, widthPct:24, scale:1 });
+    });
+    drawStage(); bindLayout();
+  }
+  function drawStage(){
+    const pv = wrap.querySelector("#pv"); if(!pv) return;
+    const activeSc = S.scenes[S.buildSceneIdx];
+    const st = stageBg(activeSc);
+    const avUrl = S.avatar ? D.avatarImg(S.avatar) : "";
+    let ovHtml = "";
+    S.globalOverlays.filter(o=>o.selected).forEach((o,idx)=>{
+      ovHtml += overlayDragHtml(o, "global", { leftPct:6+idx*2, topPct:6, widthPct:26, scale:1 });
+    });
+    if(activeSc && activeSc.overlays){
+      activeSc.overlays.filter(o=>o.selected).forEach((o,idx)=>{
+        ovHtml += overlayDragHtml(o, "scene", { leftPct:52, topPct:12+idx*12, widthPct:34, scale:1 });
+      });
+    }
+    pv.innerHTML = `<div class="livebadge">● LIVE</div>
+      <div class="layer" style="${st.style}"></div>
+      <div class="dragEl avatar-stage" data-k="avatar" style="position:absolute;left:50%;bottom:0;width:60%;height:80%;transform:${tf(S.layout.avatar)};transform-origin:bottom center;cursor:move;touch-action:none;z-index:10">
+        <div class="op-checker avatar-cutout" style="width:100%;height:100%;display:flex;align-items:flex-end;justify-content:center;border-radius:8px">
+          ${avUrl?`<img src="${encodeURI(avUrl)}" alt="" style="max-width:100%;max-height:100%;object-fit:contain;object-position:bottom center;mix-blend-mode:multiply;filter:contrast(1.06)">`:""}
+        </div>
+        <span class="rzHandle" style="position:absolute;right:8%;top:0;width:14px;height:14px;border-radius:50%;background:var(--teal);border:2px solid #fff;cursor:nwse-resize"></span></div>
+      ${ovHtml}
+      <div class="caption">点击选中 · 拖动移动 · 拉圆点缩放 · 数字人已去灰底（透明抠图 Demo）</div>`;
+    bindStage(pv);
+  }
+  function bindStage(pv){
+    const rect = ()=> pv.getBoundingClientRect();
+    pv.querySelectorAll(".dragEl[data-k=avatar]").forEach(elm=>{
+      elm.addEventListener("pointerdown", (e)=>{
+        if(e.target.classList.contains("rzHandle")) return;
+        e.preventDefault(); S.previewSel = { type:"avatar" };
+        const sx=e.clientX, sy=e.clientY, ox=S.layout.avatar.x, oy=S.layout.avatar.y;
+        const move=(ev)=>{ S.layout.avatar.x=ox+(ev.clientX-sx); S.layout.avatar.y=oy+(ev.clientY-sy); elm.style.transform=tf(S.layout.avatar); bindLayout(); };
+        const up=()=>{ document.removeEventListener("pointermove",move); document.removeEventListener("pointerup",up); };
+        document.addEventListener("pointermove",move); document.addEventListener("pointerup",up);
+      });
+      const h = elm.querySelector(".rzHandle");
+      if(h) h.addEventListener("pointerdown",(e)=>{
+        e.preventDefault(); e.stopPropagation(); S.previewSel = { type:"avatar" };
+        const sy=e.clientY, os=S.layout.avatar.scale;
+        const move=(ev)=>{ let s=os+(ev.clientY-sy)*-0.012; s=Math.max(0.4,Math.min(2,s)); S.layout.avatar.scale=s; elm.style.transform=tf(S.layout.avatar); bindLayout(); };
+        const up=()=>{ document.removeEventListener("pointermove",move); document.removeEventListener("pointerup",up); };
+        document.addEventListener("pointermove",move); document.addEventListener("pointerup",up);
+      });
+    });
+    pv.querySelectorAll(".dragEl.overlay-drag").forEach(elm=>{
+      const ovId = elm.dataset.ovId;
+      const scope = elm.dataset.scope;
+      const getOv = ()=> findOverlayById(ovId, scope);
+      elm.addEventListener("pointerdown", (e)=>{
+        if(e.target.classList.contains("rzHandle")){
+          e.preventDefault(); e.stopPropagation();
+          S.previewSel = { type:"overlay", id:ovId, scope };
+          pv.querySelectorAll(".overlay-drag").forEach(x=>x.classList.remove("preview-sel"));
+          elm.classList.add("preview-sel");
+          const ov = getOv(); if(!ov) return;
+          ensureOvLayout(ov, {});
+          const sy=e.clientY, os=ov.layout.scale;
+          const move=(ev)=>{ let s=os+(ev.clientY-sy)*-0.012; s=Math.max(0.5,Math.min(2.2,s)); ov.layout.scale=s; elm.style.transform=`scale(${s})`; bindLayout(); };
+          const up=()=>{ document.removeEventListener("pointermove",move); document.removeEventListener("pointerup",up); };
+          document.addEventListener("pointermove",move); document.addEventListener("pointerup",up);
+          return;
+        }
+        e.preventDefault();
+        S.previewSel = { type:"overlay", id:ovId, scope };
+        pv.querySelectorAll(".overlay-drag").forEach(x=>x.classList.remove("preview-sel"));
+        elm.classList.add("preview-sel");
+        const ov = getOv(); if(!ov) return;
+        ensureOvLayout(ov, {});
+        const r = rect();
+        const sx=e.clientX, sy=e.clientY, sl=ov.layout.leftPct, st=ov.layout.topPct;
+        const move=(ev)=>{
+          ov.layout.leftPct = Math.max(0, Math.min(82, sl + (ev.clientX-sx)/r.width*100));
+          ov.layout.topPct = Math.max(0, Math.min(82, st + (ev.clientY-sy)/r.height*100));
+          elm.style.left = ov.layout.leftPct + "%";
+          elm.style.top = ov.layout.topPct + "%";
+          bindLayout();
+        };
+        const up=()=>{ document.removeEventListener("pointermove",move); document.removeEventListener("pointerup",up); };
+        document.addEventListener("pointermove",move); document.addEventListener("pointerup",up);
+      });
+    });
+  }
+  function bindLayout(){
+    const P = wrap.querySelector("#layoutPanel"); if(!P) return;
+    const activeSc = S.scenes[S.buildSceneIdx];
+    let selLabel = "数字人";
+    let resetFn = ()=>{ S.layout.avatar={x:0,y:0,scale:1}; drawStage(); bindLayout(); };
+    let deleteFn = null;
+    if(S.previewSel && S.previewSel.type==="overlay"){
+      const ov = findOverlayById(S.previewSel.id, S.previewSel.scope);
+      if(ov){
+        ensureOvLayout(ov, {});
+        selLabel = (S.previewSel.scope==="global"?"全场":"本卖点") + " · " + ov.label;
+        resetFn = ()=>{ ov.layout={ leftPct:52, topPct:14, widthPct:34, scale:1 }; drawStage(); bindLayout(); };
+        deleteFn = ()=>{
+          const list = S.previewSel.scope==="global" ? S.globalOverlays : (activeSc && activeSc.overlays);
+          if(!list) return;
+          const idx = list.findIndex(o=>o.id===S.previewSel.id);
+          if(idx<0) return;
+          list.splice(idx,1);
+          S.previewSel = null;
+          drawStage(); bindLayout();
+          renderOverlayPicker(wrap.querySelector("#globalOv"), S.globalOverlays, "global", redrawRight);
+          if(activeSc) renderOverlayPicker(wrap.querySelector("#sceneOv"), activeSc.overlays, "scene", redrawRight);
+          const gc = wrap.querySelector("#globalOvCount"); if(gc) gc.textContent = S.globalOverlays.filter(o=>o.selected).length + " 个已启用";
+          const sh = wrap.querySelector("#sceneOvHint"); if(sh && activeSc) sh.textContent = sceneOverlayInheritHint(activeSc);
+        };
+      }
+    }
+    P.innerHTML = `<div class="pcard" style="padding:10px"><div class="row between" style="flex-wrap:wrap;gap:8px"><b style="font-size:12.5px">🎚 直接在画面上调整</b><div class="row" style="gap:8px">${deleteFn?'<button class="btn ghost sm" id="lyDel" style="color:var(--del)">删除选中贴片</button>':''}<button class="btn ghost sm" id="lyRec">推荐布局</button><span style="cursor:pointer;color:var(--teal);font-size:12px" id="lyReset">重置选中</span></div></div>
+      <div class="muted" style="font-size:11.5px;margin-top:4px">当前：<b>${esc(selLabel)}</b> · 点击画布元素选中 · 拖动移动 · 拉圆点缩放</div></div>`;
+    P.querySelector("#lyReset").onclick = resetFn;
+    P.querySelector("#lyRec").onclick = applyRecommendedLayout;
+    P.querySelector("#lyDel")?.addEventListener("click", deleteFn);
+  }
+  const redrawRight = ()=>{ drawStage(); bindLayout(); };
+  setTimeout(()=>{
+    drawStage(); bindLayout();
+    renderOverlayPicker(wrap.querySelector("#globalOv"), S.globalOverlays, "global", redrawRight);
+    const activeSc = S.scenes[S.buildSceneIdx];
+    if(activeSc) renderOverlayPicker(wrap.querySelector("#sceneOv"), activeSc.overlays, "scene", redrawRight);
+    const gc = wrap.querySelector("#globalOvCount");
+    if(gc) gc.textContent = S.globalOverlays.filter(o=>o.selected).length + " 个已启用";
+    const sh = wrap.querySelector("#sceneOvHint");
+    if(sh && activeSc) sh.textContent = sceneOverlayInheritHint(activeSc);
+    const note = wrap.querySelector("#pvNote");
+    if(note) note.textContent = `${S.scenes.length} 个 Scene（与卖点 1:1）· 背景＝${stageBg(activeSc).label}`;
+    const x = mid.querySelector(".banner .x"); if(x) x.onclick=()=>x.closest(".banner").remove();
+  },0);
+  return wrap;
+}
+
+function renderSB() {
+  if(!S.storyPlaybook) genStoryPlaybook();
+  syncScenesFromSellingPoints();
+  const wrap = el("div");
+  wrap.innerHTML = `<div class="banner" style="margin-bottom:12px"><span>✦</span><div><b>LIVE Storyboard（智能剧本）</b>：平台先给你一版整场安排说明；写下你的想法后可一键重新编排时间线。</div></div>
+    <div class="three-col" style="grid-template-columns:1fr 320px;gap:14px">
+      <div class="col" style="border:none;padding:0">
+        <div class="pcard" style="margin-bottom:12px"><div class="between" style="margin-bottom:8px"><b>📄 平台推荐的直播安排</b><button class="btn ghost sm" id="sbRefresh">⟳ 刷新</button></div>
+          <div class="sb-playbook" id="sbPlay">${esc(S.storyPlaybook).replace(/\n/g,"<br>")}</div></div>
+        <div class="pcard sb-intent" style="margin-bottom:12px"><b style="display:block;margin-bottom:6px">✏️ 你的想法（选填）</b>
+          <textarea id="sbIntent" placeholder="告诉 AI 你想怎么排这场直播，例如：前 3 分钟先讲优惠，后面强调送礼人群…">${esc(S.storyIntent)}</textarea>
+          <button class="btn primary sm" id="sbReOrch" style="margin-top:8px">✨ 按我的想法重新编排</button></div>
+        <div class="pcard" style="margin-bottom:12px"><b style="font-size:12.5px">卖点 ↔ Scene（1:1）</b>
+          <ul class="muted" style="font-size:12.5px;margin:8px 0 0;padding-left:18px" id="sbSpList"></ul></div>
+        <div class="pcard"><div class="col-h" style="padding:0 0 8px">Storyboard · 整场时间线</div><div id="tl"></div>
+          <div class="row" style="gap:10px;margin-top:14px;align-items:center"><b style="font-size:12px">预览时刻</b>
+            <input id="scrub" type="range" min="0" max="41" value="14" style="flex:1"><span id="tval" style="font-weight:700">14s</span></div>
+          <div id="atomInfo" class="tipcard" style="margin-top:10px">点击任一轨道色块查看详情。</div></div>
+      </div>
+      <div class="col" style="border:none;padding:0"><div class="pcard"><div class="col-h" style="padding:0 0 8px">Preview 9:16</div><div class="preview916" id="pv"></div>
+        <div class="muted" style="font-size:11.5px;margin-top:8px" id="pvnote"></div></div></div>
+    </div>`;
+  setTimeout(()=>{
+    const spList = wrap.querySelector("#sbSpList");
+    S.scenes.forEach((sc,i)=>{ const li=el("li",null,`Scene ${i+1} · ${sc.title||("未命名卖点 "+(i+1))}`); spList.appendChild(li); });
+    if(!S.scenes.length) spList.innerHTML = `<li>选品页尚未添加卖点，Storyboard 将按通用节奏编排。</li>`;
+    wrap.querySelector("#sbIntent").oninput = e=>{ S.storyIntent = e.target.value; };
+    wrap.querySelector("#sbRefresh").onclick = ()=>{ genStoryPlaybook(); render(); };
+    wrap.querySelector("#sbReOrch").onclick = ()=>{
+      genStoryPlaybook();
+      if(S.storyIntent) S.storyPlaybook += "\n\n【商家补充】\n" + S.storyIntent;
+      alert("（Demo）已按你的想法更新文字说明与时间线编排。");
+      render();
+    };
+    const tlEl = wrap.querySelector("#tl"), pv = wrap.querySelector("#pv");
+    const TK_NAME = { speech:"主播说话", visual:"画面", interaction:"观众互动", operation:"优惠 / 活动", voice:"声音", offscreen:"场外配音" };
+    const SEG_NAME = { hook:"开场", body:"讲解", cta:"促单" };
+    renderTimeline(tlEl, D.LIVEBRAIN, { audience:"seller", onPick:(tk,a)=>{ wrap.querySelector("#atomInfo").innerHTML = `<b>${TK_NAME[tk]||tk}</b> · ${a.start_sec}–${a.end_sec}s<br>${tk==="speech"?(SEG_NAME[a.segment]||"")+ "："+esc(a.text):esc(a.label||"")}`; }});
+    const scrub = wrap.querySelector("#scrub"), tval = wrap.querySelector("#tval"), note = wrap.querySelector("#pvnote");
+    const upd = ()=>{ const t=+scrub.value; tval.textContent=t+"s"; renderPreview916(pv, D.LIVEBRAIN, t, S.avatar);
+      const v=(D.LIVEBRAIN.timeline.tracks.visual||[]).find(x=>t>=x.start_sec&&t<x.end_sec);
+      note.textContent = v?("画面："+(v.label||"")):""; };
+    scrub.oninput = upd; upd();
+  },0);
+  return wrap;
+}
+
+// ---------------- Step 5 Results ----------------
+function renderStep5() {
+  const wrap = el("div","three-col"); wrap.style.gridTemplateColumns="320px 1fr";
+  const left = el("div","col"); left.innerHTML=`<div class="col-h">AI LIVE preview</div><div class="col-b"><div class="preview916" id="pv"></div></div>`;
+  const right = el("div","col");
+  right.innerHTML = `<div class="col-h">AI LIVE details</div><div class="col-b">
+    <div class="row" style="gap:10px;margin-bottom:12px"><span class="tag ready">● Ready</span><b>Your AI LIVE is Ready!</b></div>
+    <table class="v2"><tr><th>LIVE name</th><td>${esc(S.liveName)}</td></tr>
+      <tr><th>Market / Language</th><td>🇺🇸 US · ${S.language.toUpperCase()}</td></tr>
+      <tr><th>Avatar</th><td>${S.avatar?esc(S.avatar.name):"—"}</td></tr>
+      <tr><th>Mode</th><td>${S.mode==="smart"?"智能剧本":"分步引导"}</td></tr>
+      <tr><th>Products</th><td>${S.products.length} 个</td></tr>
+      <tr><th>Est. duration</th><td>~ 42s（demo 样例）</td></tr></table>
+    <button class="btn primary" style="margin-top:14px">Go LIVE now</button>
+    <div class="muted" style="font-size:12px;margin-top:8px">开播后我们会持续帮你优化直播效果，你无需额外操作。</div></div>`;
+  wrap.appendChild(left); wrap.appendChild(right);
+  setTimeout(()=>renderPreview916(wrap.querySelector("#pv"), D.LIVEBRAIN, 30, S.avatar),0);
+  return wrap;
+}
+
+// ---------------- Actionbar ----------------
+function renderActionbar() {
+  const seq = stepSeq(), bar = $("#actionbar"); bar.innerHTML="";
+  // 给右下「💬 评论」浮标留出避让空间，避免遮挡 Save/Next
+  bar.style.paddingRight = "160px";
+  const big = "padding:11px 26px;font-size:14px;min-width:104px";
+  const i = seq.indexOf(S.step);
+  if(i>0){ const b=el("button","btn ghost","Previous"); b.style.cssText=big; b.onclick=()=>{S.step=seq[i-1];render();}; bar.appendChild(b); }
+  const sv=el("button","btn ghost","Save"); sv.style.cssText=big; sv.onclick=()=>{ window.__dirty=false; UI && alert("已保存（Demo）。"); }; bar.appendChild(sv);
+  if(S.step!=="mode" && i<seq.length-1){
+    const valid = (S.step!==1 || S.avatar) && (S.step!==2 || S.products.length);
+    const b=el("button","btn primary", S.step===5?"Done":"Next");
+    b.style.cssText=big; b.disabled=!valid; b.onclick=()=>{ S.step=seq[i+1]; render(); };
+    bar.appendChild(b);
+  }
+}
+
+// ---------------- render ----------------
+function render() {
+  renderStepbar();
+  $("#audNote").innerHTML = TIP[S.step] ? ("💡 " + TIP[S.step]) : "";
+  const stage = $("#stage"); stage.innerHTML="";
+  let node;
+  if(S.step===1) node=renderStep1();
+  else if(S.step===2) node=renderStep2();
+  else if(S.step==="mode") node=renderMode();
+  else if(S.step==="build") node=renderBuild();
+  else if(S.step==="sb") node=renderSB();
+  else if(S.step===5) node=renderStep5();
+  stage.appendChild(node);
+  renderActionbar();
+  window.scrollTo(0,0);
+}
+// 默认预选，方便演示
+S.avatar = D.AVATARS[1]; S.products = ["1732323410271768766"];
+seedDemoLiveInfo(D.PRODUCTS.find(p=>p.id==="1732323410271768766"));
+S.expandedProduct = "1732323410271768766";
+window.S = S; window.render = render;
+render();
+</script>
+<script src="../shared/annotate.js"></script>
+</body>
+</html>

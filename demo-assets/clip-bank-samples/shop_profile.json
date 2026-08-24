@@ -1,0 +1,17 @@
+{
+  "_note": "V3 Demo 样例商家基础信息（平台端 Material Studio 左栏「商家维度」筛选字段，对齐《V3平台端内部工作台页面级方案》§2 页面布局）。两份 clips.json 的素材均归属该商家。",
+  "shop_id": "7494386460125857294",
+  "shop_name": "coco shop",
+  "handle": "7colorsbunny",
+  "author_id": "7341325938133500970",
+  "fans": null,
+  "live_count_30d": null,
+  "_field_status": {
+    "fans": "placeholder_待补",
+    "live_count_30d": "placeholder_待补"
+  },
+  "assets": [
+    "method1_background_57s.clips.json",
+    "method2_uyv_29s.clips.json"
+  ]
+}

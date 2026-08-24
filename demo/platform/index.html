@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI 直播大脑 · 平台端内部工作台 (Demo)</title>
+<link rel="stylesheet" href="../shared/v2-theme.css" />
+</head>
+<body>
+<div class="topnav">
+  <span class="logo">AI 直播大脑</span>
+  <span class="crumb">Internal Workbench · 平台端</span>
+  <span class="spacer"></span>
+  <span class="nav-right"><span class="pill- env">INTERNAL</span> 运营 / 产品 / 算法</span>
+</div>
+
+<div class="shell">
+  <div class="sidenav" id="nav">
+    <div class="grp">链路</div>
+    <div class="item active" data-v="material">🎬 Material Studio <span class="pri p0" style="margin-left:auto">P0</span></div>
+    <div class="item" data-v="attr">📡 AI LIVE 直播监控看板 <span class="pri p0" style="margin-left:auto">P0</span></div>
+    <div class="item" data-v="script">🧩 Script Studio <span class="pri p1" style="margin-left:auto">P1</span></div>
+    <div class="item" data-v="optimize">🧪 脚本优化生产 &amp; 测评 <span class="pri p0" style="margin-left:auto">P0</span></div>
+    <!-- P-9：Workflow / Overview 先隐藏（代码保留，后续再放开 display） -->
+    <div class="item" data-v="flow" style="display:none">🛠 Workflow / Overview <span class="pri p2" style="margin-left:auto">P2</span></div>
+    <a class="item" href="../index.html" style="margin-top:16px;color:#0a8a8a">← Demo 入口</a>
+  </div>
+  <div class="main" data-ann-group="平台端">
+    <div class="pcard" id="taskbar" style="padding:10px 14px;margin-bottom:12px;display:flex;gap:16px;align-items:center;flex-wrap:wrap"></div>
+    <div class="note" id="audNote"></div>
+    <div id="stage"></div>
+  </div>
+</div>
+
+<script src="../shared/data.js"></script>
+<script src="../shared/app.js"></script>
+<script>
+const { $, $$, el, esc, bg, modal, renderTimeline } = UI;
+const D = DEMO;
+let adopted = {}; // clip_index -> bool
+let curTask = D.LIVE_TASKS[0];   // 当前选中的直播任务（shop × live_task）
+let curView = "material";
+
+const AUD = {
+  material:"先定店铺 → 看各来源解析进度 → 按商品下钻 clips → 采纳回填商家端。每个 clip 必须归属具体商品。",
+  materialTech:"算法：1fps 抽帧 → gemini-3-pro-preview-new 镜头/语义切分 → clip 打标(strong/bg/risk)+match_score+asr_lang。研发：原始素材源管理 / clip 列表·详情抽屉 / 采纳门控。本数据为真实样例解析。",
+  script:"🧠 算法重点：L0 主 Agent 编排 + 6 职能 subagent 并行 → 直播大脑 JSON(多轨并发，显式[start,end])。⚙️研发：时间轴渲染组件、provenance 落点、shared_context 前缀缓存。",
+  attr:"🧠 算法重点：以 room_id 为主键的直播监控 —— ① 脚本 diff(平台初稿 vs 商家确认稿，店铺×商品) ② 分钟级监控(消费侧信号 + 风控命中，合并到同一时间轴；归因/建议两套逻辑) → 诊断 → 人工确认改 prompt → 回归。",
+  optimize:"🧪 脚本优化生产 & 测评【P0】：承接监控看板诊断/归因 → 优化 prompt 与生产 → 测评 2.0 回归。本页实时挂载《脚本生产与测评 Pipeline · 算法研发对齐稿》，源文档持续更新、本页自动同步。",
+  flow:"⚙️研发：素材→剧本→归因流水线 + mode(classic/smart) 分桶看板。",
+};
+
+function taskProduct(){ return D.PRODUCTS.find(p=>p.id===curTask.product_id) || D.PRODUCTS[0]; }
+function shopMaterialStats(){
+  const totalPending = D.SOURCE_SUMMARY.reduce((s,x)=>s+(x.pending||0),0);
+  const totalParsed = D.SOURCE_SUMMARY.reduce((s,x)=>s+(x.parsed||0),0);
+  const totalSources = D.SOURCE_SUMMARY.reduce((s,x)=>s+(x.total||0),0);
+  const totalClips = D.SOURCE_SUMMARY.reduce((s,x)=>s+(x.clips||0),0);
+  return { totalPending, totalParsed, totalSources, totalClips };
+}
+function buildPendingQueue(){
+  const fromRaw = D.ORIGINALS.filter(o=>!o.clip_count).map(o=>({
+    id:o.id, file:o.file, source:o.source_label, source_kind:o.source,
+    uploaded:o.uploaded, status:"queued", priority:"normal", note:o.note||"",
+  }));
+  const extra = [
+    { id:"PEND-004", file:"商家新上传_开箱竖屏_42s.mp4", source:"商家本地上传", source_kind:"local_upload", uploaded:"2026-06-17", status:"processing", priority:"high", progress:62, note:"商家端 My assets · 本地上传回流" },
+    { id:"PEND-005", file:"@7colorsbunny / 竖屏种草_18s.mp4", source:"关联 TikTok 已发布", source_kind:"tiktok_post", uploaded:"2026-06-16", status:"queued", priority:"normal", note:"TikTok 主页同步 · 待入队" },
+    { id:"PEND-006", file:"LIVE_replay_20260612_互动高光.mp4", source:"近30天销量 TOP 直播录屏", source_kind:"history_live", uploaded:"2026-06-12", status:"failed", priority:"normal", note:"切片任务失败 · 可重试", error:"gemini timeout" },
+  ];
+  return fromRaw.concat(extra).sort((a,b)=> (a.status==="processing"?0:1) - (b.status==="processing"?0:1) || b.uploaded.localeCompare(a.uploaded));
+}
+function openPendingQueueModal(){
+  const queue = buildPendingQueue();
+  const body = el("div");
+  body.innerHTML = `<div class="tipcard">待解析队列 · shop <code>${esc(D.SHOP.shop_id)}</code> · 商家端上传 / TikTok 同步 / 直播回放切片均在此排队；运营可设优先级或批量触发解析。</div>
+    <table class="v2" style="margin-top:10px"><tr><th>素材</th><th>来源</th><th>提交</th><th>状态</th><th>操作</th></tr>
+    ${queue.map(q=>{
+      const st = q.status==="processing"? `<span class="tag gen">解析中 ${q.progress||0}%</span>`
+        : q.status==="failed"? `<span class="tag live">失败</span><div class="muted" style="font-size:10px">${esc(q.error||"")}</div>`
+        : `<span class="tag draft">排队中</span>`;
+      const pri = q.priority==="high"? `<span class="chip" style="background:#fff3cd;color:#d97706;margin-left:4px">优先</span>` : "";
+      return `<tr><td><div style="font-weight:600;font-size:12.5px">${esc(q.file)}</div><div class="muted" style="font-size:10.5px"><code>${esc(q.id)}</code>${pri}</div></td>
+        <td>${esc(q.source)}</td><td>${esc(q.uploaded)}</td><td>${st}</td>
+        <td><button class="btn ghost sm" data-parse="${esc(q.id)}">${q.status==="failed"?"重试":"立即解析"}</button></td></tr>`;
+    }).join("")}
+    </table>
+    <div class="muted" style="font-size:11.5px;margin-top:8px">共 <b>${queue.length}</b> 条 · 其中处理中 ${queue.filter(q=>q.status==="processing").length} · 失败 ${queue.filter(q=>q.status==="failed").length}</div>`;
+  const foot = el("div","row");
+  foot.style.cssText = "gap:8px;justify-content:flex-end";
+  foot.innerHTML = `<button class="btn ghost sm" data-no>关闭</button><button class="btn primary sm" data-batch>批量解析排队项</button>`;
+  const dlg = modal("待解析队列 · "+esc(D.SHOP.shop_name), body, foot, "modal-wide");
+  foot.querySelector("[data-no]").onclick = dlg.close;
+  foot.querySelector("[data-batch]").onclick = ()=>{ alert("（Demo）已触发 shop "+D.SHOP.shop_id+" 批量解析任务，完成后 clips 进入 Clip Bank。"); dlg.close(); };
+  body.querySelectorAll("[data-parse]").forEach(b=>b.onclick = ()=>{ alert("（Demo）已触发单条解析："+b.dataset.parse); });
+}
+function openSourceManageModal(){
+  const body = el("div");
+  body.innerHTML = `<div class="tipcard">来源管理 · shop <code>${esc(D.SHOP.shop_id)}</code> · 配置三类素材源的接入、同步策略与解析开关（运营 / 研发视图）。</div>
+    <div class="grid3" style="margin-top:12px">
+    ${D.SOURCE_SUMMARY.map(s=>{
+      const pct = s.total? Math.round(s.parsed/s.total*100) : 0;
+      return `<div class="pcard"><div class="row between"><b>${s.icon} ${esc(s.label)}</b><span class="tag ${s.pending?"draft":"ready"}">${s.pending?("待解析 "+s.pending):"已全解析"}</span></div>
+        <div class="muted" style="font-size:11.5px;margin:8px 0">${esc(s.extra)}</div>
+        <div class="row" style="gap:10px;margin-bottom:8px"><div><div style="font-size:20px;font-weight:800">${s.parsed}/${s.total}</div><div class="muted" style="font-size:10px">已解析</div></div>
+          <div><div style="font-size:20px;font-weight:800;color:var(--teal)">${s.clips}</div><div class="muted" style="font-size:10px">clips</div></div></div>
+        <div class="meter" style="height:6px;margin-bottom:10px"><i style="width:${pct}%"></i></div>
+        <div class="row" style="gap:6px;flex-wrap:wrap">
+          <button class="btn ghost sm" data-sync="${esc(s.source)}">同步 / 刷新</button>
+          <button class="btn ghost sm" data-cfg="${esc(s.source)}">解析配置</button>
+          ${s.pending? `<button class="btn primary sm" data-parse-src="${esc(s.source)}">解析待处理 (${s.pending})</button>`:""}
+        </div></div>`;
+    }).join("")}
+    </div>
+    <div class="banner" style="margin-top:12px"><span>ℹ️</span><div><b>商家端入口映射</b><div class="muted" style="font-size:11.5px">本地上传 ↔ My assets · 上传视频 ｜ TikTok ↔ 账号授权同步 ｜ 直播回放 ↔ room_id 高光切片 pipeline</div></div></div>`;
+  const foot = el("div");
+  foot.innerHTML = `<button class="btn ghost sm" data-no>关闭</button>`;
+  const dlg = modal("来源管理 · "+esc(D.SHOP.shop_name), body, foot, "modal-wide");
+  foot.querySelector("[data-no]").onclick = dlg.close;
+  body.querySelectorAll("[data-sync]").forEach(b=>b.onclick=()=>alert("（Demo）已触发 "+b.dataset.sync+" 同步任务"));
+  body.querySelectorAll("[data-cfg]").forEach(b=>b.onclick=()=>alert("（Demo）打开 "+b.dataset.cfg+" 解析配置（抽帧/模型/打标阈值）"));
+  body.querySelectorAll("[data-parse-src]").forEach(b=>b.onclick=()=>{ alert("（Demo）已对该来源待处理项批量入队"); openPendingQueueModal(); dlg.close(); });
+}
+function renderTaskbar(){
+  const tb = $("#taskbar");
+  if(curView==="material"){
+    const st = shopMaterialStats();
+    tb.innerHTML = `
+      <div><div class="muted" style="font-size:11px">Shop · 素材域</div><b>${esc(D.SHOP.shop_name)}</b> <span class="muted" style="font-size:11.5px">@${esc(D.SHOP.handle)} · <code>${esc(D.SHOP.shop_id)}</code></span></div>
+      <div style="border-left:1px solid var(--line);padding-left:16px"><div class="muted" style="font-size:11px">当前模块</div><b>Material Studio</b> <span class="chip" style="background:var(--teal-50);color:var(--teal)">整店素材</span></div>
+      <div style="border-left:1px solid var(--line);padding-left:16px"><div class="muted" style="font-size:11px">店级概览</div>
+        <span class="chip">${D.PRODUCTS.length} 商品</span> <span class="tag draft">${st.totalPending} 待解析</span> <span class="tag ready">${st.totalClips} clips</span></div>
+      <div style="margin-left:auto" class="muted" style="font-size:11px">素材按 <code>shop_id</code> 组织 · 非单场 live_task 限定</div>`;
+    return;
+  }
+  tb.innerHTML = `
+    <div><div class="muted" style="font-size:11px">Shop</div><b>${esc(D.SHOP.shop_name)}</b> <span class="muted" style="font-size:11.5px">@${esc(D.SHOP.handle)} · ${D.SHOP.shop_id}</span></div>
+    <div style="border-left:1px solid var(--line);padding-left:16px"><div class="muted" style="font-size:11px">Live task（直播任务）</div>
+      <select id="taskSel" style="padding:6px 10px;border:1px solid var(--grey-300);border-radius:8px;font-weight:700;max-width:340px"></select></div>
+    <div><div class="muted" style="font-size:11px">主推商品</div><b>${esc(taskProduct().ip)}</b></div>
+    <div><div class="muted" style="font-size:11px">模式 / 状态</div><span class="chip">${curTask.mode==='smart'?'智能剧本':'分步引导'}</span> <span class="tag ${curTask.status==='已开播'?'ready':'draft'}">${esc(curTask.status)}</span></div>
+    <div style="margin-left:auto" class="muted" style="font-size:11px">数据均按 <code>shop_id × live_task_id</code> 维度组织</div>`;
+  const sel = tb.querySelector("#taskSel");
+  D.LIVE_TASKS.forEach(t=>{ const o=el("option",null,`${t.task_id} · ${t.name}`); o.value=t.task_id; if(t.task_id===curTask.task_id) o.selected=true; sel.appendChild(o); });
+  sel.onchange = ()=>{ curTask = D.LIVE_TASKS.find(t=>t.task_id===sel.value); VIEWS[curView](); renderTaskbar(); };
+}
+
+// ---------------- D-P1 Material Studio ----------------
+function clipProductId(c, bank){
+  const k = bank.source + c.clip_index;
+  if(clipProductOverrides[k]) return clipProductOverrides[k];
+  return c.product_id || bank.product_id || taskProduct().id;
+}
+function productById(id){ return D.PRODUCTS.find(p=>p.id===id) || taskProduct(); }
+function clipDrawer(bank, c) {
+  const mismatch = c.asr_lang && c.asr_lang !== "en";
+  const pid = clipProductId(c, bank);
+  const prod = productById(pid);
+  const strongTip = c.clip_type === "strong"
+    ? `<div class="tipcard" style="margin:10px 0;background:var(--teal-50);border-color:var(--teal-200)"><b style="color:var(--teal)">强卖点片段</b><div style="font-size:12px;margin-top:6px;line-height:1.65">画面与口播都在<b>主动讲这个商品的核心好处</b>，适合当主讲解镜。与普通展示（bg）不同：bg 只是商品出镜、不一定在卖；risk 则不建议使用。</div></div>`
+    : (c.clip_type === "bg"
+      ? `<div class="muted" style="font-size:12px;margin:10px 0;line-height:1.6">泛展示片段：商品或场景出镜，但不一定在讲卖点，可作背景或过渡。</div>`
+      : `<div class="muted" style="font-size:12px;margin:10px 0;line-height:1.6;color:var(--del)">不推荐片段：画面/口播与商品弱相关或存在合规风险，默认不采纳。</div>`);
+  const body = el("div");
+  body.innerHTML = `<div class="grid2">
+    <div><div class="thumb-wrap"><div class="thumb wide" style="${bg(c.thumbUrl)};border-radius:10px;aspect-ratio:9/16"></div><span class="dur-badge">${c.start_time_sec}s–${c.start_time_sec+c.duration_sec}s</span></div>
+      <div class="muted" style="font-size:11.5px;margin-top:6px">来源视频 source_index=${c.source_index} · ${esc(bank.original)}</div></div>
+    <div>
+      <div class="row" style="gap:6px;flex-wrap:wrap"><span class="tag ${c.clip_type}">${c.clip_type}</span>${c.highlight?'<span class="chip" style="background:#fff3cd;color:#d97706">★ 高光</span>':''}<span class="chip">layer: ${c.visual_layer}</span></div>
+      ${strongTip}
+      <div class="banner" style="margin:10px 0 6px"><span>${bank.src_icon||'🎞'}</span><div><b>归属商品：${esc(prod.ip)}</b><div class="muted" style="font-size:11.5px">Product ID ${prod.id}</div></div></div>
+      <div class="row" style="gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><span class="muted" style="font-size:12px">改归属：</span><select id="clipProdSel" style="flex:1;min-width:180px;padding:6px 8px;border:1px solid var(--grey-300);border-radius:8px">${D.PRODUCTS.map(p=>`<option value="${p.id}"${p.id===pid?" selected":""}>${esc(p.ip)} · ${p.id}</option>`).join("")}</select></div>
+      <div class="banner" style="margin:0 0 6px"><span>${bank.src_icon||'🎞'}</span><div><b>素材来源：${esc(bank.src_label||bank.source)}</b><div class="muted" style="font-size:11.5px">${esc(bank.original)}</div></div></div>
+      <p style="margin:10px 0 6px;font-weight:600">${esc(c.visual_content)}</p>
+      <div style="margin:6px 0">${c.tags.map(t=>`<span class="chip">${esc(t)}</span>`).join("")}</div>
+      <table class="v2" style="margin-top:8px">
+        <tr><th>来源类型</th><td>${esc(bank.src_label||bank.source)}（${bank.src_kind==="local_upload"?"商家本地上传":bank.src_kind==="tiktok_post"?"关联 TikTok 已发布":bank.src_kind==="history_live"?"近30天销量 TOP 直播录屏":bank.src_kind==="live_replay"?"直播录屏":bank.source}）</td></tr>
+        <tr><th>product_id</th><td><code>${pid}</code></td></tr>
+        <tr><th>clip_id</th><td><code>${c.clip_id}</code></td></tr>
+        <tr><th>规格</th><td>${c.resolution||"1080×1920"} · ${(c.fps||30)}fps · ${c.codec||"H.264"}${c.size_mb!=null?(" · "+c.size_mb+"MB"):""}</td></tr>
+        <tr><th>start / duration</th><td>${c.start_time_sec}s / ${c.duration_sec}s · 解析硬约束：最短 30s</td></tr>
+        <tr><th>clip_type</th><td>${c.clip_type}（strong=强卖点 / bg=泛展示 / risk=不可用）</td></tr>
+        <tr><th>selling_point</th><td>${esc(c.selling_point)}</td></tr>
+        <tr><th>visual_content</th><td>${esc(c.visual_content)}</td></tr>
+        <tr><th>asr_content</th><td class="muted">${esc(c.asr_content)}</td></tr>
+        <tr><th>asr_lang</th><td>${c.asr_lang? (mismatch?`<span class="tag draft">${c.asr_lang} · ⚠ lang_mismatch</span>`:`<span class="tag ready">${c.asr_lang} ✓ 与场次语言一致</span>`) : '<span class="muted">null（has_speech=false / 占位）</span>'}</td></tr>
+        <tr><th>recommend_use / layer</th><td>${c.recommend_use} → ${c.visual_layer}</td></tr>
+        <tr><th>relevance</th><td>${c.relevance}</td></tr>
+        <tr><th>product_match_score</th><td><div class="row" style="gap:8px;align-items:center"><div class="meter ${c.match_score>=90?'hi':c.match_score<50?'lo':''}" style="flex:1"><i style="width:${c.match_score}%"></i></div><b>${c.product_match_score}</b></div><div class="muted" style="font-size:11px;margin-top:4px">建议卡匹配度：越高越适合挂到该商品讲解卡片</div></td></tr>
+        <tr><th>match_reason</th><td>${esc(c.match_reason)}<div class="muted" style="font-size:11px;margin-top:4px">同步至商家端「为什么推荐」</div></td></tr>
+        <tr><th>provenance</th><td><details><summary style="cursor:pointer;font-size:12px">展开技术溯源</summary><span class="muted">${c.clip_id} · parsed by gemini-3-pro-preview-new · ${esc(bank.source)}</span></details></td></tr>
+      </table>
+    </div></div>`;
+  const foot = el("div");
+  foot.innerHTML = `<button class="btn ghost sm">改标签</button><button class="btn ghost sm">合并/拆分</button>
+    <button class="btn ${adopted[bank.source+c.clip_index]?'ghost':'primary'} sm" data-adopt>${adopted[bank.source+c.clip_index]?'✓ 已采纳（取消）':'采纳 → 回填商家端 My assets·Clips'}</button>`;
+  const dlg = modal("Clip 详情 · "+c.clip_id+" · "+esc(prod.ip), body, foot);
+  body.querySelector("#clipProdSel")?.addEventListener("change", e=>{
+    clipProductOverrides[bank.source+c.clip_index] = e.target.value;
+    c.product_id = e.target.value;
+    dlg.close(); renderMaterial();
+  });
+  foot.querySelector("[data-adopt]").onclick = ()=>{ const k=bank.source+c.clip_index; adopted[k]=!adopted[k]; dlg.close(); renderMaterial(); };
+}
+const SRC_ICON = { local_upload:"⬆️", tiktok_post:"🔗", history_live:"📺", live_replay:"📺" };
+let matSearchMode = "product";
+let matProdQuery = "";
+let matProdQueryActive = "";
+let matClipQuery = "";
+let matClipQueryActive = "";
+let clipProductOverrides = {};
+let matJumpProductId = null;
+// 把所有 bank 的 clips 摊平、带上各自 bank（来源），用于「商品维度」聚合
+function allProductClips(){
+  return [D.CLIPS_M1, D.CLIPS_M2, D.CLIPS_LIVE].flatMap(b=>b.clips.map(c=>({ c, bank:b })))
+    .sort((a,b)=>(b.c.match_score||0)-(a.c.match_score||0));
+}
+function renderMaterial() {
+  const stage=$("#stage"); stage.innerHTML="";
+  const adoptedCount = Object.values(adopted).filter(Boolean).length;
+  const st = shopMaterialStats();
+  stage.appendChild(el("div","between",`<div><div class="h-title">🎬 Material Studio</div><div class="sub-title">店 → 整体解析 → 商品 → clips · 采纳回填商家端</div></div><span class="tag ready">已采纳 ${adoptedCount}</span>`));
+  stage.appendChild(el("div","note",AUD.material));
+  const techFold = el("details","tech-fold");
+  techFold.style.cssText = "margin:0 0 12px;font-size:12.5px";
+  techFold.innerHTML = `<summary style="cursor:pointer;color:var(--grey);font-weight:600">技术说明（算法 / 研发 · 点击展开）</summary><div class="muted" style="margin-top:8px;line-height:1.65;font-size:12px">${esc(AUD.materialTech)}</div>`;
+  stage.appendChild(techFold);
+
+  // ① 店铺维度
+  stage.appendChild(el("h3",null,"① 店铺维度"));
+  const shopBlock = el("div","pcard mat-shop-block");
+  shopBlock.innerHTML = `<div class="row between" style="flex-wrap:wrap;gap:10px">
+      <div><b style="font-size:16px">${esc(D.SHOP.shop_name)}</b> <span class="muted" style="font-size:12px">@${esc(D.SHOP.handle)}</span>
+        <div class="muted" style="font-size:11.5px;margin-top:4px">shop_id <code>${esc(D.SHOP.shop_id)}</code> · 素材域＝整店 · 与 live_task 解耦</div></div>
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <button class="btn primary sm" id="btnPendingQ">📋 待解析队列 <span class="chip" style="background:rgba(255,255,255,.25);margin-left:4px">${st.totalPending}</span></button>
+        <button class="btn ghost sm" id="btnSrcMgr">⚙️ 来源管理</button>
+        <button class="btn ghost sm" id="btnSellerReflow">↩ 商家端上传回流</button>
+      </div></div>
+    <div class="mat-shop-stats grid4" style="margin-top:14px">
+      <div class="mat-stat"><div class="mat-stat-n">${D.PRODUCTS.length}</div><div class="mat-stat-l">在售商品</div></div>
+      <div class="mat-stat"><div class="mat-stat-n">${st.totalSources}</div><div class="mat-stat-l">素材条目（全来源）</div></div>
+      <div class="mat-stat"><div class="mat-stat-n" style="color:var(--draft)">${st.totalPending}</div><div class="mat-stat-l">待解析</div></div>
+      <div class="mat-stat"><div class="mat-stat-n" style="color:var(--teal)">${st.totalClips}</div><div class="mat-stat-l">Clip Bank · clips</div></div>
+    </div>
+    <div class="muted" style="font-size:11.5px;margin-top:10px">阅读顺序：先定店 → 看整体解析进度 → 再按商品下钻 clips · 已解析 ${st.totalParsed}/${st.totalSources}</div>`;
+  stage.appendChild(shopBlock);
+  shopBlock.querySelector("#btnPendingQ").onclick = openPendingQueueModal;
+  shopBlock.querySelector("#btnSrcMgr").onclick = openSourceManageModal;
+  shopBlock.querySelector("#btnSellerReflow").onclick = ()=>alert("（Demo）查看商家端 My assets 上传 / 整段视频 / 片段解析的回流事件（shop_id="+D.SHOP.shop_id+"）");
+
+  // ② 商家整体素材解析情况（按来源汇总）
+  stage.appendChild(el("h3",null,"② 整体素材解析情况（该商家全部来源）"));
+  stage.appendChild(el("div","tipcard",`商家 <b>${esc(D.SHOP.shop_id)}</b> 的素材按<b>来源</b>聚合的整体解析情况：各来源提交量、产出 clips、解析进度。先看全局，再下钻到具体商品。`));
+  const sum = el("div","grid3"); sum.style.margin="6px 0 6px";
+  D.SOURCE_SUMMARY.forEach(s=>{
+    const pct = s.total? Math.round(s.parsed/s.total*100) : 0;
+    const c = el("div","pcard");
+    c.innerHTML = `<div class="row between"><b>${s.icon} ${esc(s.label)}</b><span class="tag ${s.pending? 'draft':'ready'}">${s.pending?('待解析 '+s.pending):'已全解析'}</span></div>
+      <div class="row" style="gap:14px;margin:10px 0 6px;align-items:baseline">
+        <div><div style="font-size:26px;font-weight:800">${s.total}</div><div class="muted" style="font-size:11px">${esc(s.unit)}</div></div>
+        <div><div style="font-size:26px;font-weight:800;color:var(--teal)">${s.clips}</div><div class="muted" style="font-size:11px">产出 clips</div></div>
+        <div><div style="font-size:16px;font-weight:700">${s.parsed}/${s.total}</div><div class="muted" style="font-size:11px">已解析素材</div></div>
+      </div>
+      <div class="meter" style="height:7px"><i style="width:${pct}%"></i></div>
+      <div class="muted" style="font-size:11px;margin-top:6px">解析进度 ${pct}% · ${esc(s.extra)}</div>`;
+    sum.appendChild(c);
+  });
+  stage.appendChild(sum);
+  const srcWrap = el("div","grid3"); srcWrap.style.margin="6px 0 4px";
+  D.ORIGINALS.forEach(o=>{
+    const card = el("div","pcard");
+    card.innerHTML = `<div class="row between"><b>${SRC_ICON[o.source]||'🎞'} ${esc(o.source_label)}</b><span class="chip" style="${o.has_speech?'background:#dbeafe;color:#2563eb':''}">has_speech: ${o.has_speech}</span></div>
+      <div class="muted" style="font-size:12px;margin:6px 0">${esc(o.file)}</div>
+      <table class="v2" style="margin-top:4px"><tr><th>时长</th><td>${o.duration}s</td></tr><tr><th>提交时间</th><td>${o.uploaded}</td></tr><tr><th>产出 clips</th><td>${o.clip_count? `<b>${o.clip_count}</b> 个`:'<span class="muted">未解析（占位）</span>'}</td></tr></table>
+      <div class="muted" style="font-size:11px;margin-top:6px">${esc(o.note)}</div>`;
+    srcWrap.appendChild(card);
+  });
+  stage.appendChild(srcWrap);
+
+  // ③ 商品维度 → clips（clip 必须归属具体商品）
+  stage.appendChild(el("h3",null,"③ 按商品查看片段"));
+  stage.appendChild(el("div","tipcard",`每个 clip <b>必须挂在具体商品</b>下。可先按商品 ID/名称找品，再下钻 clips；也可按片段语义在全店搜索（结果仍显示归属商品，可跳转）。解析硬约束：最短 <b>30s</b>。`));
+  const sbar = el("div","mat-search-bar");
+  sbar.innerHTML = `<div class="row" style="gap:8px;margin-bottom:8px;flex-wrap:wrap">
+      <button class="btn ${matSearchMode==="product"?"primary":"ghost"} sm" data-mode="product">按商品</button>
+      <button class="btn ${matSearchMode==="clip"?"primary":"ghost"} sm" data-mode="clip">按片段语义</button></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap" id="matSearchRow"></div>
+    <span class="muted" style="font-size:12px;display:block;margin-top:6px" id="matQn"></span>`;
+  stage.appendChild(sbar);
+  const prodWrap = el("div"); stage.appendChild(prodWrap);
+  const clipResultWrap = el("div"); clipResultWrap.style.display="none"; stage.appendChild(clipResultWrap);
+
+  function buildClipCard({c, bank}, opts={}){
+    const k = bank.source+c.clip_index, isAd = adopted[k];
+    const pid = clipProductId(c, bank);
+    const prod = productById(pid);
+    const cc = el("div","sel-card"+(isAd?" selected":""));
+    cc.innerHTML = `${isAd?'<div class="tick">✓</div>':''}
+      <div class="thumb-wrap"><div class="thumb wide" style="${bg(c.thumbUrl)}"></div><span class="dur-badge">${c.duration_sec}s</span>
+        <span class="chip" style="position:absolute;left:6px;top:6px;background:rgba(0,0,0,.55);color:#fff;font-size:10px">${bank.src_icon||'🎞'} ${esc(bank.src_label||'')}</span></div>
+      <div class="meta"><div class="row between"><span class="tag ${c.clip_type}">${c.clip_type}</span>${c.highlight?'<span style="color:#d97706">★</span>':''}</div>
+      <div style="font-size:11.5px;margin:5px 0;height:32px;overflow:hidden" class="muted">${esc(c.visual_content)}</div>
+      ${opts.showProd?`<div style="margin:2px 0"><span class="chip mat-prod-chip" data-pid="${pid}" style="background:var(--teal-50);color:var(--teal);font-size:10px;cursor:pointer">${esc(prod.ip)}</span></div>`:""}
+      <div class="muted" style="font-size:10.5px;height:28px;overflow:hidden;margin:2px 0">${esc(c.match_reason||"")}</div>
+      <div class="row" style="gap:6px;align-items:center"><div class="meter ${c.match_score>=90?'hi':c.match_score<50?'lo':''}" style="flex:1"><i style="width:${c.match_score}%"></i></div><b style="font-size:12px">${c.match_score}</b></div></div>`;
+    cc.onclick = ()=>clipDrawer(bank,c);
+    cc.querySelector(".mat-prod-chip")?.addEventListener("click", e=>{ e.stopPropagation(); matJumpProductId=pid; matSearchMode="product"; renderMaterial(); });
+    return cc;
+  }
+
+  function drawClipSemanticResults(){
+    const q = matClipQueryActive.trim().toLowerCase();
+    let list = allProductClips();
+    if(q) list = list.filter(({c})=> (c.visual_content+" "+(c.tags||[]).join(" ")+" "+c.selling_point+" "+c.asr_content+" "+c.match_reason).toLowerCase().includes(q));
+    clipResultWrap.style.display = q ? "block" : "none";
+    prodWrap.style.display = q ? "none" : "block";
+    const qn = sbar.querySelector("#matQn");
+    if(qn) qn.textContent = q ? (list.length+" 个匹配片段 · 语义「"+matClipQueryActive+"」") : "";
+    clipResultWrap.innerHTML = "";
+    if(!q) return;
+    if(!list.length){ clipResultWrap.appendChild(el("div","tipcard","没有匹配的片段。换个关键词，或切换到「按商品」浏览。")); return; }
+    clipResultWrap.appendChild(el("div","muted","",`语义搜索结果 · 点击商品标签可跳转到该品下全部 clips`));
+    const grid = el("div","card-grid"); grid.style.cssText="grid-template-columns:repeat(4,1fr);margin-top:8px";
+    list.forEach(pc=>grid.appendChild(buildClipCard(pc, {showProd:true})));
+    clipResultWrap.appendChild(grid);
+  }
+
+  function drawProducts(){
+    if(matClipQueryActive) { drawClipSemanticResults(); return; }
+    clipResultWrap.style.display = "none";
+    prodWrap.style.display = "block";
+    const q = matProdQueryActive.trim().toLowerCase();
+    let list = D.PRODUCTS.filter(p=> !q || (p.id+" "+(p.name||"")+" "+(p.ip||"")).toLowerCase().includes(q));
+    const qn = sbar.querySelector("#matQn"); if(qn) qn.textContent = list.length+" 个商品"+(q?(" · 搜索「"+matProdQueryActive+"」"):"");
+    prodWrap.innerHTML = "";
+    if(!list.length){ prodWrap.appendChild(el("div","tipcard","没有匹配的商品，换个商品 ID 或名称。")); return; }
+    list.forEach(prod=>{
+      const pclips = allProductClips().filter(({c,bank})=> clipProductId(c,bank)===prod.id);
+      const strongN = pclips.filter(({c})=>c.clip_type==="strong").length;
+      const pcard = el("div","pcard mat-product-card");
+      if(matJumpProductId===prod.id) pcard.style.borderColor="var(--teal)";
+      pcard.innerHTML = `<div class="row" style="gap:12px;align-items:center">
+          <div class="pimg" style="${bg(prod.img)};width:54px;height:54px;border-radius:10px;flex-shrink:0"></div>
+          <div style="flex:1"><b style="font-size:15px">${esc(prod.ip)}</b><div class="muted" style="font-size:11.5px">Product ID: ${prod.id}</div>
+            <div style="margin-top:4px">${(prod.points||[]).slice(0,3).map(pt=>`<span class="chip">${esc(pt)}</span>`).join("")}</div></div>
+          <div style="text-align:right"><div style="font-size:24px;font-weight:800;color:var(--teal)">${pclips.length}</div><div class="muted" style="font-size:11px">clips</div></div></div>
+        <div class="row between" style="margin:10px 0 6px;flex-wrap:wrap;gap:8px">
+          <span class="muted" style="font-size:11.5px">${strongN} 个 strong · 来源见 clip 详情</span>
+          ${pclips.length? `<button class="btn ghost sm" data-batch="${prod.id}">批量采纳 strong</button>`:""}</div>`;
+      const pcg = el("div","card-grid pcg"); pcg.style.cssText="grid-template-columns:repeat(4,1fr)";
+      if(pclips.length) pclips.forEach(pc=>pcg.appendChild(buildClipCard(pc)));
+      else pcg.innerHTML = `<div class="tipcard" style="grid-column:1/-1">该商品暂无 clips。商家上传或关联素材解析后将挂到本商品。</div>`;
+      pcard.appendChild(pcg);
+      pcard.querySelector("[data-batch]")?.addEventListener("click", ()=>{
+        pclips.filter(({c})=>c.clip_type==="strong").forEach(({c,bank})=>{ adopted[bank.source+c.clip_index]=true; });
+        renderMaterial();
+      });
+      prodWrap.appendChild(pcard);
+    });
+    if(matJumpProductId){ const elJump = prodWrap.querySelector(".mat-product-card"); if(elJump) elJump.scrollIntoView({behavior:"smooth",block:"start"}); matJumpProductId=null; }
+  }
+
+  function renderSearchRow(){
+    const row = sbar.querySelector("#matSearchRow");
+    if(matSearchMode==="product"){
+      row.innerHTML = `<input id="matProdQ" placeholder="🔎 商品 ID 或名称…" value="${esc(matProdQuery)}" style="flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--grey-300);border-radius:8px"><button class="btn primary sm" id="matProdGo">搜索</button>`;
+      const pq = row.querySelector("#matProdQ");
+      const run = ()=>{ matProdQuery=pq.value; matProdQueryActive=matProdQuery.trim(); matClipQueryActive=""; drawProducts(); };
+      row.querySelector("#matProdGo").onclick = run;
+      pq.onkeydown = e=>{ if(e.key==="Enter"){ e.preventDefault(); run(); } };
+    } else {
+      row.innerHTML = `<input id="matClipQ" placeholder="🔎 片段语义：ASMR / 开箱 / 舀珠…" value="${esc(matClipQuery)}" style="flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--grey-300);border-radius:8px"><button class="btn primary sm" id="matClipGo">搜索</button>`;
+      const cq = row.querySelector("#matClipQ");
+      const run = ()=>{ matClipQuery=cq.value; matClipQueryActive=matClipQuery.trim(); drawClipSemanticResults(); if(!matClipQueryActive){ prodWrap.style.display="block"; clipResultWrap.style.display="none"; drawProducts(); } };
+      row.querySelector("#matClipGo").onclick = run;
+      cq.onkeydown = e=>{ if(e.key==="Enter"){ e.preventDefault(); run(); } };
+    }
+  }
+  sbar.querySelectorAll("[data-mode]").forEach(btn=>{
+    btn.onclick = ()=>{ matSearchMode=btn.dataset.mode; matProdQueryActive=""; matClipQueryActive=""; renderMaterial(); };
+  });
+  renderSearchRow();
+  drawProducts();
+
+  // ④ 加工过程 pipeline
+  stage.appendChild(el("h3",null,"④ 素材是怎么解析出来的"));
+  const flow = el("details","pcard tech-fold"); flow.style.margin="10px 0";
+  flow.innerHTML = `<summary style="cursor:pointer;font-weight:700">解析流水线（点击展开技术细节）</summary>
+    <div style="margin-top:10px"><span class="muted" style="font-size:12px">（has_speech 分流 + 画面必经）</span>
+    <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap">
+    <span class="chip">原始素材</span>→<span class="chip">检测 has_speech</span>→<span class="chip">1fps 抽帧</span>→<span class="chip" style="background:#fae8ff;color:#86198f">gemini-3-pro-preview-new 镜头/语义切分+打标</span>→<span class="chip">match_score / asr_lang</span>→<span class="chip">clip_type 分类</span>→<span class="chip">Clip Bank</span>→<span class="chip" style="background:var(--teal-50);color:var(--teal)">运营采纳→回填商家端</span></div>
+    <div class="tipcard" style="margin-top:10px">有声链路走 ASR→原音稿→时效/错词/上下文改写；无声链路（如本地上传的 57s）仅画面理解，口播字段占位。两路最终都进入统一 Clip Bank。</div></div>`;
+  stage.appendChild(flow);
+}
+
+// ---------------- D-P2 Script Studio ----------------
+function renderScript() {
+  const stage=$("#stage"); stage.innerHTML="";
+  stage.appendChild(el("div","",`<div class="h-title">🧩 Script Studio</div><div class="sub-title">L0 主 Agent 编排 + 6 职能 subagent 并行 → 直播大脑 JSON（多轨并发时间轴）</div>`));
+  stage.appendChild(el("div","note",AUD.script));
+  // agent 编排图
+  const orch = el("div","pcard"); orch.style.margin="12px 0";
+  orch.innerHTML = `<b>主-子 Agent 编排</b>
+    <div class="row" style="gap:10px;margin-top:10px;flex-wrap:wrap;align-items:flex-start">
+      <div class="pcard" style="background:var(--teal-50);border-color:var(--teal-200)"><b style="color:var(--teal)">L0 主 Agent</b><div class="muted" style="font-size:12px">品时间段 + 整场节奏 + 共享上下文</div></div>
+      <div style="align-self:center">→</div>
+      <div class="grid3" style="flex:1;gap:8px">
+        ${["选品 subagent","脚本 subagent","画面 subagent","互动 subagent","声音 subagent","场外音 subagent"].map(s=>`<div class="pcard" style="padding:8px 10px"><span class="who alg">algo</span> ${s}</div>`).join("")}
+      </div>
+    </div>
+    <div class="tipcard" style="margin-top:10px">${esc(D.SHARED_CTX.desc)}</div>`;
+  stage.appendChild(orch);
+  // 共享上下文结构展开
+  const sc = el("div","pcard"); sc.style.margin="0 0 14px";
+  sc.innerHTML = `<div class="between"><b>🧠 shared_context · 共享上下文结构</b><span class="chip">字节稳定前缀 → fork 复用 cache</span></div>
+    <table class="v2" style="margin-top:8px"><tr><th>字段</th><th>本场取值</th><th>含义</th><th>可读 subagent（白名单）</th></tr>
+    ${D.SHARED_CTX.fields.map(f=>`<tr><td><code>${esc(f.k)}</code></td><td>${esc(f.v)}</td><td class="muted">${esc(f.note)}</td><td><span class="chip">${esc(f.read)}</span></td></tr>`).join("")}
+    </table>
+    <div class="muted" style="font-size:11.5px;margin-top:6px">各 subagent 仅有白名单读权限：只交换结构化产物（track_outputs），不偷看彼此中间过程；track_private 存各自私有参数。</div>`;
+  stage.appendChild(sc);
+  // 多轨时间轴（与商家端 D-S7 同一份）
+  const tlCard = el("div","pcard");
+  tlCard.innerHTML = `<div class="between"><b>直播大脑 JSON · 多轨并发时间轴</b><span class="chip">mode=${D.LIVEBRAIN.mode}</span></div><div id="tl" style="margin-top:10px"></div><div id="ai" class="tipcard" style="margin-top:10px">点击色块看原子 + provenance。</div>`;
+  stage.appendChild(tlCard);
+  setTimeout(()=>renderTimeline($("#tl"), D.LIVEBRAIN, { onPick:(tk,a)=>{ $("#ai").innerHTML = `<b>${tk}</b> · ${a.start_sec}–${a.end_sec}s · provenance: {track:"${tk}", mode:"smart", market:"US", language:"en"}<br><code style="font-size:11px">${esc(JSON.stringify(a))}</code>`; }}),0);
+  // JSON 契约
+  const j = el("div","pcard"); j.style.marginTop="14px";
+  j.innerHTML = `<div class="between"><b>render_contract（渲染契约）</b><span class="chip">同一时间轴 · 多轨叠加规则</span></div>
+    <div class="tipcard" style="margin:10px 0">
+      <b>一句话：这份契约定义「同一时刻多条轨道怎么叠在一起」——画面谁盖谁、声音谁压谁。</b>
+      <div style="margin-top:8px"><b>① 画面叠放（从上往下盖）：</b>操作浮层（价格牌/倒计时）＞ 前景贴片 ＞ 数字人 ＞ 场景视频 ＞ 全局背景。越靠前越在上层、越不会被挡。</div>
+      <div style="margin-top:6px"><b>② 声音大小优先级：</b>口播 ＞ 场外音 ＞ 提示音 ＞ 背景乐。同时响时，按这个顺序保证谁该被听清。</div>
+      <div style="margin-top:6px"><b>③ ducking（自动让音）：</b>高优先级的声音一响（如口播、场外音催单），背景乐 / 提示音自动压低，说完再恢复——就像主播说话时音乐自动变小。</div>
+    </div>
+    <pre style="background:var(--grey-50);border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;font-size:12px">${esc(JSON.stringify(D.LIVEBRAIN.timeline.render_contract,null,2))}</pre>
+    <div class="muted" style="font-size:11px;margin-top:6px">上面的大白话给运营/产品看，下面的 JSON 给研发/算法当渲染与混音的工程契约。</div>`;
+  stage.appendChild(j);
+}
+
+// ---------------- D-P3 Attribution Studio（S1/S2/S3 三明细 Tab） ----------------
+let attrTab = "s2";
+function dirTag(d){ return d==="up"?'<span class="tag ready">↑</span>':d==="down"?'<span class="tag live">↓</span>':'<span class="tag draft">⚠</span>'; }
+function renderAttr() {
+  const stage=$("#stage"); stage.innerHTML="";
+  stage.appendChild(el("div","",`<div class="h-title">📡 AI LIVE 直播监控看板</div><div class="sub-title">${esc(curTask.task_id)} · Room ${curTask.room_id?esc(curTask.room_id):'—'} · 脚本 diff 归因 + 分钟级监控（消费侧 × 风控，同一时间轴）→ 诊断 → 人工确认改 prompt → 回归</div>`));
+  stage.appendChild(el("div","note",AUD.attr));
+  // tabs
+  const tabs = el("div","row"); tabs.style.cssText="gap:8px;margin:6px 0 12px;flex-wrap:wrap";
+  [["s2","脚本 diff 归因（店铺×商品）"],["s3","分钟级监控（消费侧 × 风控 · 同一时间轴）"]].forEach(([k,t])=>{
+    const b=el("button","btn sm "+(attrTab===k?"primary":"ghost"),t); b.onclick=()=>{ attrTab=k; renderAttr(); }; tabs.appendChild(b);
+  });
+  stage.appendChild(tabs);
+  const box = el("div"); stage.appendChild(box);
+  if(attrTab==="s2") renderAttrS2(box);
+  else renderAttrS3(box);
+}
+function renderAttrS2(box){
+  const s2 = D.ATTR.s2;
+  box.appendChild(el("div","tipcard","组织维度＝<b>店铺ID → 商品ID</b>。「平台初稿 vs 商家确认稿」按 <b>商品 → 卖点 → 每个卖点的 Hook/Body/CTA</b> 逐段比对：商家改了什么 → 归因诊断 → 直接给出<b>可粘贴的提示词修改（前→后原句）</b>。商家保存即唯一「喂数据」动作。"));
+  box.appendChild(el("div","",`<div class="muted" style="font-size:11.5px;margin-top:12px">Shop <code>${esc(D.SHOP.shop_id)}</code> × Product <code>1732323410271768766</code></div><div class="h-title" style="font-size:16px;margin-top:2px">📦 ${esc(s2.product)}</div><div class="sub-title">共 ${s2.points.length} 个卖点 · 每个卖点含 Hook / Body / CTA</div>`));
+  s2.points.forEach((pt,idx)=>{
+    const card=el("div","pcard"); card.style.marginTop="12px";
+    let rows = `<tr><th style="width:7%">段</th><th style="width:23%">平台初稿</th><th style="width:23%">商家确认稿</th><th style="width:20%">归因诊断</th><th style="width:27%">提示词修改（前→后）</th></tr>`;
+    pt.segs.forEach(r=>{
+      rows += `<tr><td><span class="seg-pill">${r.seg}</span></td>
+        <td class="muted">${esc(r.platform)}</td>
+        <td>${esc(r.merchant)}</td>
+        <td>${esc(r.attr)}</td>
+        <td><div class="muted" style="font-size:11px;text-decoration:line-through;opacity:.7">${esc(r.prompt_before)}</div>
+            <div style="margin-top:4px;font-size:11.5px;color:#86198f">↳ <code style="background:#fae8ff;padding:1px 4px;border-radius:4px">${esc(r.prompt_after)}</code></div></td></tr>`;
+    });
+    card.innerHTML = `<div class="row between"><b>卖点 ${idx+1}：${esc(pt.point)}</b><span class="chip">${pt.segs.length} 段</span></div>
+      <table class="v2" style="margin-top:8px">${rows}</table>`;
+    box.appendChild(card);
+  });
+  box.appendChild(el("div","muted",`<div style="font-size:11.5px;margin-top:8px">「提示词修改（前→后）」给出可直接落到对应 subagent prompt 的<b>原句</b>，不做模糊定性表达；确认后进 prompt 迭代队列 → 测评 2.0 回归。</div>`));
+}
+// 分钟级监控：消费侧信号 + 风控命中「合并到同一条时间轴」（room_id 维度）；归因/建议两套逻辑
+function renderAttrS3(box){
+  const minStart = (m)=>{ const n = (m||"").match(/\d+/); return n? +n[0] : 0; };
+  // 合并两路为同一时间轴：消费侧（kind=consume）+ 风控（kind=risk），按分钟排序
+  const merged = [
+    ...D.ATTR.s3.filter(r=>!r.risk).map(r=>({ kind:"consume", ...r })),
+    ...D.ATTR.risk.map(r=>({ kind:"risk", ...r })),
+  ].sort((a,b)=>minStart(a.min)-minStart(b.min));
+
+  box.appendChild(el("div","tipcard",`组织维度＝<b>商家ID → 直播 Room <code>${curTask.room_id?esc(curTask.room_id):'—'}</code></b>。消费侧信号与风控命中<b>合并在同一条时间轴</b>上按分钟对齐；归因定位与建议是<b>两套逻辑</b>（消费侧＝优化转化/互动；风控＝反向归因 Violation Code + 禁词校验，对齐合规知识库 §10.2）。`));
+
+  const t=el("div","pcard"); t.style.marginTop="12px";
+  t.innerHTML = `<div class="row between"><b>分钟级监控时间轴（消费侧 × 风控 合并）</b><span class="muted" style="font-size:11.5px">🟦 消费侧　🟥 风控命中</span></div>
+    <table class="v2" style="margin-top:8px"><tr><th style="width:8%">分钟</th><th style="width:9%">类型</th><th style="width:20%">信号 / 命中</th><th style="width:25%">归因定位</th><th>建议 / 提示词修改（前→后）</th></tr>
+    ${merged.map(r=>{
+      if(r.kind==="risk"){
+        return `<tr style="background:#fff5f5"><td>${esc(r.min)}</td>
+          <td><span class="tag live">⚠ 风控</span></td>
+          <td><span class="tag live">${esc(r.code)}</span><div class="muted" style="font-size:11px;margin-top:3px">${esc(r.rule)}</div></td>
+          <td>${esc(r.reason)}</td>
+          <td>${esc(r.fix)}<div class="muted" style="font-size:11px;text-decoration:line-through;opacity:.7;margin-top:4px">${esc(r.prompt_before)}</div><div style="margin-top:3px;font-size:11.5px;color:#86198f">↳ <code style="background:#fae8ff;padding:1px 4px;border-radius:4px">${esc(r.prompt_after)}</code></div></td></tr>`;
+      }
+      return `<tr><td>${esc(r.min)}</td>
+        <td><span class="tag ready">🟦 消费侧</span></td>
+        <td>${r.signal.map(s=>`${esc(s.t)} ${dirTag(s.d)}`).join(" ")}</td>
+        <td>${esc(r.locate)}</td>
+        <td>${esc(r.suggest)}${r.prompt?`<div style="margin-top:4px;font-size:11.5px;color:#86198f">↳ <code style="background:#fae8ff;padding:1px 4px;border-radius:4px">${esc(r.prompt)}</code></div>`:''}</td></tr>`;
+    }).join("")}
+    </table>
+    <div class="muted" style="font-size:11.5px;margin-top:6px">同一时间轴对齐，便于看「某分钟掉转化 / 命中风控」与生产侧轨道·原子的对应关系；消费侧给优化 prompt，风控给整改 + 禁词校验。</div>`;
+  box.appendChild(t);
+  // 诊断 + 改 prompt
+  const d = el("div","pcard"); d.style.marginTop="14px";
+  d.innerHTML = `<div class="between"><b>诊断报告 → 人工确认改 prompt</b><span class="tag draft">待确认</span></div>
+    <div class="tipcard" style="margin:10px 0">主因：12' 转化下滑＝<b>运营 overlay 价格牌出现过晚</b>；28' 命中<b>误导价格(#16)</b>。建议：price_tag 提前到品 0s 常驻 + CTA 禁用绝对化价格词。</div>
+    <div class="row" style="gap:10px"><button class="btn primary sm" onclick="alert('（Demo）已写入 prompt 迭代队列，进入测评 2.0 回归')">确认并更新 prompt</button><button class="btn ghost sm">忽略</button></div>`;
+  box.appendChild(d);
+}
+
+// ---------------- 脚本优化生产 & 测评（实时挂载算法研发对齐稿）【P0】 ----------------
+// 同源相对路径：8000/8911 均在项目根起服务，故从 demo/platform/ 回退三级到根取该对齐稿。
+// 源文档持续更新，iframe 加载实时文件 → 本页自动同步（刷新即最新），不依赖 8911 是否在跑。
+const OPTIMIZE_DOC = "../../docs/脚本生产与测评Pipeline-算法研发对齐稿.html";
+function renderOptimize() {
+  const stage=$("#stage"); stage.innerHTML="";
+  stage.appendChild(el("div","between",`<div><div class="h-title">🧪 脚本优化生产 & 测评</div><div class="sub-title">承接监控看板诊断/归因 → 优化 prompt 与生产 → 测评 2.0 回归 ｜ 挂载《脚本生产与测评 Pipeline · 算法研发对齐稿》</div></div><span class="tag ready">P0 · Live 同步</span>`));
+  stage.appendChild(el("div","note",AUD.optimize));
+  const bar = el("div","row"); bar.style.cssText="gap:10px;margin:6px 0 10px;align-items:center";
+  bar.innerHTML = `<span class="muted" style="font-size:12px">📄 实时挂载算法研发对齐稿 —— 源文档持续更新、本页自动同步（刷新即最新）</span>
+    <a class="btn ghost sm" href="${OPTIMIZE_DOC}" target="_blank" style="margin-left:auto">↗ 新标签打开</a>
+    <button class="btn ghost sm" id="optReload">⟳ 刷新对齐稿</button>`;
+  stage.appendChild(bar);
+  const wrap = el("div"); wrap.style.cssText="border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff";
+  wrap.innerHTML = `<iframe id="optFrame" src="${OPTIMIZE_DOC}" title="脚本生产与测评 Pipeline · 算法研发对齐稿" style="width:100%;height:calc(100vh - 232px);min-height:520px;border:0;display:block"></iframe>`;
+  stage.appendChild(wrap);
+  const rb = bar.querySelector("#optReload"); if(rb) rb.onclick=()=>{ const f=stage.querySelector("#optFrame"); if(f) f.src = OPTIMIZE_DOC + "?t=" + Date.now(); };
+}
+
+// ---------------- D-P4 Workflow / Overview ----------------
+function renderFlow() {
+  const stage=$("#stage"); stage.innerHTML="";
+  stage.appendChild(el("div","",`<div class="h-title">🛠 Workflow / Overview</div><div class="sub-title">流水线视图 + mode 分桶看板</div>`));
+  stage.appendChild(el("div","note",AUD.flow));
+  const p = el("div","pcard"); p.style.margin="12px 0";
+  p.innerHTML = `<b>端到端流水线</b><div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap">
+    <span class="chip" style="background:var(--teal-50);color:var(--teal)">Material 解析</span>→<span class="chip">Clip Bank</span>→<span class="chip" style="background:#fae8ff;color:#86198f">Script 编排</span>→<span class="chip">直播大脑 JSON</span>→<span class="chip">商家端 Step4</span>→<span class="chip">开播</span>→<span class="chip">Attribution 归因</span>→<span class="chip">prompt 迭代</span></div>`;
+  stage.appendChild(p);
+  stage.appendChild(el("div","grid2",`
+    <div class="pcard"><b>mode 分桶看板</b><table class="v2" style="margin-top:8px">
+      <tr><th>模式</th><th>场次</th><th>均测评分</th><th>GMV/场</th></tr>
+      <tr><td>classic 经典分步</td><td>128</td><td>79</td><td>$1,240</td></tr>
+      <tr><td>smart 智能剧本</td><td>36</td><td>85</td><td>$1,610</td></tr></table>
+      <div class="muted" style="font-size:12px;margin-top:6px">归因/测评按 mode 分桶，防混样。</div></div>
+    <div class="pcard"><b>合规左移</b><div class="muted" style="font-size:12px">生成时注入红线 + 禁讲内容</div>
+      <div style="margin-top:8px"><span class="tag ready">NN_Strong_Live 通过</span></div>
+      <div style="margin-top:6px"><span class="tag draft">误导价格 1 处 → 已 highlight</span></div></div>`));
+}
+
+// ---------------- nav ----------------
+const VIEWS = { material:renderMaterial, script:renderScript, attr:renderAttr, optimize:renderOptimize, flow:renderFlow };
+$$("#nav .item[data-v]").forEach(it=>it.onclick=()=>{
+  $$("#nav .item").forEach(x=>x.classList.remove("active")); it.classList.add("active");
+  curView = it.dataset.v; renderTaskbar(); VIEWS[curView]();
+});
+renderTaskbar();
+renderMaterial();
+</script>
+<script src="../shared/annotate.js"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI LIVE 平台 · 产品演示 Demo</title>
+<link rel="stylesheet" href="shared/v2-theme.css" />
+<style>
+  .hero { background: linear-gradient(135deg, #0a8a8a 0%, #0c6e9e 100%); color:#fff; padding: 38px 28px; }
+  .hero h1 { font-size: 28px; }
+  .hero .pitch { max-width: 880px; margin-top: 14px; }
+  .hero .pitch li { margin: 7px 0; opacity:.96; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 26px 22px 60px; }
+  .entry { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:-30px; }
+  .entry .card { background:#fff; border-radius: var(--r-lg); box-shadow: var(--shadow-lg); padding:22px; }
+  .entry .card h2 { font-size:19px; display:flex; align-items:center; gap:8px; }
+  .entry .card .go { margin-top:14px; }
+  .badge-row .chip { background:var(--teal-50); color:var(--teal); font-weight:700; }
+</style>
+</head>
+<body>
+<div class="topnav">
+  <span class="logo">TikTok <b>Shop</b></span>
+  <span class="crumb">AI LIVE 平台</span>
+  <span class="spacer"></span>
+  <span class="nav-right"><span class="pill- env">DEMO</span> 123@byte.com · English ▾</span>
+</div>
+
+<div class="hero">
+  <h1>AI LIVE 平台 · 产品演示 Demo</h1>
+  <ol class="pitch">
+    <li><b>定位</b>：把"数字人直播"从"配个会念稿的数字人"升级为<b>数据驱动、自迭代的 AI 直播大脑</b>。</li>
+    <li><b>商家极简</b>：商家只做 4 件事——选形象、选品、给卖点/禁讲、改脚本点保存；其余全自动。</li>
+    <li><b>素材自动化</b>：同一条商品视频，平台自动解析成可复用 <b>Clip Bank</b>，自动产出"可直接开播"的剧本。</li>
+    <li><b>真实直播节奏</b>：剧本是<b>同一时间轴多轨叠加</b>（口播+画面+互动+运营+场外音并发），不是干念稿，强化真人在场避红线。</li>
+    <li><b>越播越好</b>：开播后<b>分钟级归因 → 自动迭代 prompt</b>，闭环自进化；全程合规左移。</li>
+  </ol>
+</div>
+
+<div class="wrap" data-ann-group="落地页">
+  <div class="entry">
+    <div class="card">
+      <h2>🧑‍💼 商家端 · Seller Workbench</h2>
+      <p class="muted">商家视角：选形象、选品、配画面、改话术，一步步引导，简单好上手。<b>严格复刻 V2 视觉规范</b>（TikTok Shop LIVE Manager 五步向导）。</p>
+      <div class="badge-row" style="margin:8px 0">
+        <span class="chip">Step1 形象+Market/Language</span><span class="chip">Step2 选品</span>
+        <span class="chip">双模式二选一</span><span class="chip">Step3 素材库</span>
+        <span class="chip">Step4 话术 Hook/Body/CTA</span><span class="chip">模式二 智能剧本 Storyboard</span>
+      </div>
+      <div class="go"><a class="btn primary" href="seller/index.html">进入商家端 Demo →</a></div>
+    </div>
+    <div class="card">
+      <h2>🏭 平台端 · Internal Workbench</h2>
+      <p class="muted">生产+智能层：素材解析→Clip Bank、剧本(直播大脑 JSON)生产、provenance、反馈归因、算法工作流——服务运营/产品/算法。</p>
+      <div class="badge-row" style="margin:8px 0">
+        <span class="chip">Material Studio(解析)</span><span class="chip">Script Studio(主-子 Agent)</span>
+        <span class="chip">Attribution(分钟级归因)</span><span class="chip">Workflow / Overview</span>
+      </div>
+      <div class="go"><a class="btn primary" href="platform/index.html">进入平台端 Demo →</a></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="pcard">
+    <h3>🔁 商家端 × 平台端 如何衔接</h3>
+    <p class="muted" style="margin-top:8px;line-height:1.8">商家端只管<b>体验</b>：选形象、选品、配画面、改话术点 Save，简单到底。平台端在背后封装<b>生产与智能</b>：把商家的素材解析成可复用片段、自动编排出整场剧本、开播后做分钟级归因并自动优化——这些商家<b>无需感知</b>。两端通过同一份「直播大脑 JSON」对接。</p>
+    <p class="muted" style="font-size:12px;margin-top:10px">说明：本演示为可点击前端原型（纯静态），数据使用 <code>demo-assets/</code> 真实解析样例与真实商品；后端 / 模型为 mock。</p>
+    <p style="margin-top:12px;font-size:13px;line-height:1.9">
+      <b>方案文档</b>：
+      <a href="../docs/V3页面级方案-阅读版.html">阅读版（可批注）</a> ·
+      <a href="../docs/V3商家端页面级方案（基于V2链路迭代）.md">商家端 md</a> ·
+      <a href="../docs/V3平台端内部工作台页面级方案.md">平台端 md</a> ·
+      <a href="../docs/脚本生产与测评Pipeline-算法研发对齐稿.html">算法对齐稿</a>
+    </p>
+  </div>
+</div>
+<script src="shared/annotate.js"></script>
+</body>
+</html>
