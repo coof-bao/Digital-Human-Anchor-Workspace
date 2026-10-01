@@ -11,11 +11,12 @@
   .hero .pitch { max-width: 880px; margin-top: 14px; }
   .hero .pitch li { margin: 7px 0; opacity:.96; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 26px 22px 60px; }
-  .entry { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:-30px; }
+  .entry { display:grid; grid-template-columns:repeat(3, 1fr); gap:18px; margin-top:-30px; }
   .entry .card { background:#fff; border-radius: var(--r-lg); box-shadow: var(--shadow-lg); padding:22px; }
   .entry .card h2 { font-size:19px; display:flex; align-items:center; gap:8px; }
   .entry .card .go { margin-top:14px; }
   .badge-row .chip { background:var(--teal-50); color:var(--teal); font-weight:700; }
+  @media (max-width: 980px) { .entry { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -57,6 +58,15 @@
         <span class="chip">Attribution(分钟级归因)</span><span class="chip">Workflow / Overview</span>
       </div>
       <div class="go"><a class="btn primary" href="platform/index.html">进入平台端 Demo →</a></div>
+    </div>
+    <div class="card">
+      <h2>🛍️ 导购助手 · Fashion Lab</h2>
+      <p class="muted">导购视角：根据近期时尚趋势生成穿搭 look，支持 Ask AI 问答、Style 推荐、Look 迭选，并沉淀到具体商品链接与图文讲解。</p>
+      <div class="badge-row" style="margin:8px 0">
+        <span class="chip">Ask AI 穿搭问答</span><span class="chip">趋势 Look 推荐</span>
+        <span class="chip">Try-on 迭选</span><span class="chip">商品链接+讲解图文</span>
+      </div>
+      <div class="go"><a class="btn primary" href="fashion-assistant/index.html">进入导购助手 Demo →</a></div>
     </div>
   </div>
 

@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fashion Lab · AI 导购助手 Demo</title>
+<style>
+  :root {
+    --ink:#141414;
+    --muted:#747474;
+    --line:#e8e3db;
+    --paper:#fbfaf7;
+    --card:#ffffff;
+    --cream:#f3ead9;
+    --sand:#dfc8a2;
+    --accent:#111111;
+    --pink:#ff3f7f;
+    --green:#3a7d58;
+    --shadow:0 14px 40px rgba(24,20,16,.12);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Inter","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0;
+    min-height:100vh;
+    font-family:var(--font);
+    color:var(--ink);
+    background:
+      linear-gradient(90deg, rgba(232,227,219,.6) 1px, transparent 1px),
+      linear-gradient(180deg, rgba(232,227,219,.55) 1px, transparent 1px),
+      #f7f4ee;
+    background-size:32px 32px;
+  }
+  a { color:inherit; text-decoration:none; }
+  button, input { font:inherit; }
+  button { cursor:pointer; }
+  .topbar {
+    height:54px;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:0 22px;
+    background:rgba(255,255,255,.88);
+    border-bottom:1px solid var(--line);
+    position:sticky;
+    top:0;
+    z-index:20;
+    backdrop-filter:blur(14px);
+  }
+  .brand { font-weight:850; letter-spacing:.1px; }
+  .brand b { font-weight:850; }
+  .topbar .back {
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:999px;
+    width:34px;
+    height:34px;
+    display:grid;
+    place-items:center;
+  }
+  .status { margin-left:auto; display:flex; gap:8px; align-items:center; color:var(--muted); font-size:12px; }
+  .pill { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:999px; padding:5px 9px; background:#fff; color:#555; font-size:12px; font-weight:700; }
+  .dot { width:7px; height:7px; border-radius:50%; background:var(--green); }
+
+  .workspace {
+    max-width:1420px;
+    margin:0 auto;
+    padding:22px;
+    display:grid;
+    grid-template-columns:300px minmax(430px,1fr) 330px;
+    gap:18px;
+    align-items:start;
+  }
+  .panel {
+    background:rgba(255,255,255,.92);
+    border:1px solid var(--line);
+    border-radius:8px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .panel-h {
+    padding:14px 16px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .panel-h h2 { margin:0; font-size:15px; }
+  .sub { color:var(--muted); font-size:12px; line-height:1.45; }
+  .phone {
+    width:100%;
+    background:#f8f8f6;
+    border-radius:26px;
+    border:8px solid #151515;
+    overflow:hidden;
+    box-shadow:0 20px 50px rgba(0,0,0,.18);
+  }
+  .phone-screen { min-height:720px; background:#fbfaf8; }
+  .phone-head {
+    height:42px;
+    display:flex;
+    align-items:center;
+    padding:0 14px;
+    gap:10px;
+    font-size:11px;
+    font-weight:800;
+  }
+  .phone-head .time { margin-right:auto; }
+  .hero-card {
+    margin:0 12px 12px;
+    border-radius:18px;
+    min-height:156px;
+    overflow:hidden;
+    position:relative;
+    background:#ddd;
+  }
+  .hero-card img, .look-hero img, .style-img img, .product-img img, .article-img img { width:100%; height:100%; object-fit:cover; display:block; }
+  .hero-card::after, .look-hero::after {
+    content:"";
+    position:absolute;
+    inset:0;
+    background:linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.48));
+  }
+  .hero-copy {
+    position:absolute;
+    left:14px;
+    right:14px;
+    bottom:14px;
+    color:#fff;
+    z-index:1;
+  }
+  .hero-copy h1 { margin:0; font-size:22px; line-height:1.05; }
+  .hero-copy p { margin:5px 0 0; font-size:12px; opacity:.92; }
+  .ask {
+    margin:0 12px 12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:8px 10px 8px 13px;
+  }
+  .ask input {
+    border:0;
+    outline:0;
+    flex:1;
+    min-width:0;
+    color:#333;
+    background:transparent;
+    font-size:12px;
+  }
+  .icon-btn {
+    border:0;
+    background:#111;
+    color:#fff;
+    width:28px;
+    height:28px;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    font-weight:900;
+  }
+  .quick-row {
+    margin:0 12px 16px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .quick {
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:10px;
+    padding:9px 8px;
+    text-align:left;
+    font-size:11px;
+    font-weight:800;
+    min-height:48px;
+  }
+  .section-title { margin:16px 14px 10px; font-size:13px; font-weight:850; }
+  .style-list { display:grid; gap:10px; padding:0 12px 16px; }
+  .style-card {
+    display:grid;
+    grid-template-columns:1fr 92px;
+    gap:10px;
+    min-height:130px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px;
+    background:#fff;
+    text-align:left;
+  }
+  .style-card.active { border-color:#111; box-shadow:0 0 0 2px #111 inset; }
+  .style-card h3 { margin:0 0 6px; font-size:13px; line-height:1.25; }
+  .style-card p { margin:0; color:var(--muted); font-size:11px; line-height:1.35; }
+  .style-img { border-radius:10px; overflow:hidden; background:#eee; }
+  .try { margin-top:10px; display:inline-flex; border:0; border-radius:999px; padding:6px 10px; background:#111; color:#fff; font-size:11px; font-weight:800; }
+  .feed-grid { padding:0 12px 18px; display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .feed {
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:#fff;
+    overflow:hidden;
+    text-align:left;
+  }
+  .feed .style-img { border-radius:0; aspect-ratio:1/1; }
+  .feed p { margin:8px; font-size:11px; font-weight:750; line-height:1.25; }
+  .feed span { display:block; color:var(--muted); font-weight:600; margin-top:3px; }
+
+  .assistant {
+    min-height:720px;
+    display:grid;
+    grid-template-rows:auto auto 1fr auto;
+  }
+  .trend-tabs, .item-tabs {
+    display:flex;
+    gap:8px;
+    overflow:auto;
+    padding:12px 16px;
+    border-bottom:1px solid var(--line);
+  }
+  .tab {
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:999px;
+    padding:7px 12px;
+    white-space:nowrap;
+    font-size:12px;
+    font-weight:800;
+    color:#555;
+  }
+  .tab.active { background:#111; color:#fff; border-color:#111; }
+  .chat {
+    padding:18px 18px 22px;
+    display:grid;
+    gap:14px;
+    align-content:start;
+    background:linear-gradient(180deg, #fff, #fbfaf8);
+  }
+  .bubble {
+    max-width:88%;
+    border-radius:16px;
+    padding:12px 13px;
+    line-height:1.55;
+    font-size:13px;
+  }
+  .bubble.user { justify-self:end; background:#e8f2ec; }
+  .bubble.ai { justify-self:start; background:#fff; border:1px solid var(--line); }
+  .answer-card {
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    background:#fff;
+  }
+  .answer-body { padding:14px; }
+  .answer-body h3 { margin:0 0 8px; font-size:18px; }
+  .answer-body p { margin:0 0 10px; color:#444; line-height:1.65; }
+  .look-board {
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:8px;
+    padding:0 14px 14px;
+  }
+  .mini-look {
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    background:#fff;
+    text-align:left;
+  }
+  .mini-look.active { border-color:#111; box-shadow:0 0 0 2px #111 inset; }
+  .mini-look .style-img { border-radius:0; aspect-ratio:4/5; }
+  .mini-look b { display:block; padding:8px 8px 2px; font-size:12px; }
+  .mini-look span { display:block; padding:0 8px 8px; color:var(--muted); font-size:11px; }
+  .chat-compose {
+    padding:12px 16px;
+    border-top:1px solid var(--line);
+    display:flex;
+    gap:8px;
+    background:#fff;
+  }
+  .chat-compose input {
+    flex:1;
+    min-width:0;
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:10px 13px;
+    outline:0;
+  }
+
+  .tryon { display:grid; gap:12px; padding:12px; }
+  .look-hero {
+    aspect-ratio:9/14;
+    border-radius:18px;
+    overflow:hidden;
+    position:relative;
+    background:#ddd;
+  }
+  .look-overlay {
+    position:absolute;
+    inset:0;
+    z-index:1;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    padding:12px;
+    color:#fff;
+  }
+  .look-top { display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:850; }
+  .price-stack {
+    position:absolute;
+    top:48px;
+    right:10px;
+    display:grid;
+    gap:7px;
+    z-index:2;
+  }
+  .price-chip {
+    width:52px;
+    border-radius:10px;
+    background:rgba(255,255,255,.92);
+    color:#111;
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,.7);
+    box-shadow:0 4px 16px rgba(0,0,0,.18);
+  }
+  .price-chip img { width:100%; aspect-ratio:1/1; object-fit:cover; display:block; }
+  .price-chip b { display:block; padding:3px 4px; text-align:center; font-size:10px; }
+  .buy {
+    border:0;
+    background:var(--pink);
+    color:#fff;
+    border-radius:999px;
+    padding:9px 14px;
+    font-weight:900;
+    align-self:flex-end;
+  }
+  .refine {
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fff;
+    overflow:hidden;
+  }
+  .refine-h { padding:10px 12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); }
+  .product-grid {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    padding:12px;
+  }
+  .product {
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    background:#fff;
+    text-align:left;
+    cursor:pointer;
+  }
+  .product.active { border-color:#111; }
+  .product-img { aspect-ratio:1/1.15; background:#eee; }
+  .product-copy { padding:8px; }
+  .product-copy b { display:block; font-size:11px; line-height:1.25; min-height:29px; }
+  .product-copy span { display:block; color:#888; font-size:10px; margin-top:4px; }
+  .product-copy strong { display:block; margin-top:5px; font-size:12px; }
+  .product-copy a {
+    display:inline-flex;
+    margin-top:7px;
+    border-radius:999px;
+    padding:5px 8px;
+    background:#111;
+    color:#fff;
+    font-size:10px;
+    font-weight:850;
+  }
+  .explain {
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fff;
+    overflow:hidden;
+  }
+  .article-img { height:150px; background:#eee; }
+  .explain article { padding:12px; }
+  .explain h3 { margin:0 0 8px; font-size:15px; }
+  .explain p { margin:0 0 10px; color:#444; line-height:1.55; font-size:12px; }
+  .reason-list { margin:0; padding-left:17px; color:#555; font-size:12px; line-height:1.6; }
+
+  @media (max-width:1180px) {
+    .workspace { grid-template-columns:280px 1fr; }
+    .right-col { grid-column:1 / -1; display:grid; grid-template-columns:330px 1fr; gap:18px; }
+    .look-hero { aspect-ratio:9/12; }
+  }
+  @media (max-width:820px) {
+    .topbar { padding:0 12px; }
+    .status { display:none; }
+    .workspace { grid-template-columns:1fr; padding:12px; }
+    .phone { max-width:360px; margin:0 auto; }
+    .right-col { grid-column:auto; display:block; }
+    .look-board { grid-template-columns:1fr; }
+    .panel { border-radius:8px; }
+  }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="back" href="../index.html" aria-label="返回 Demo 入口">‹</a>
+  <div class="brand">Fashion <b>Lab</b></div>
+  <span class="pill"><i class="dot"></i> Trend-aware styling demo</span>
+  <div class="status">
+    <span>2026 spring signals</span>
+    <span class="pill">Ask AI</span>
+  </div>
+</div>
+
+<main class="workspace">
+  <section class="phone" aria-label="Fashion Lab mobile home">
+    <div class="phone-screen">
+      <div class="phone-head"><span class="time">8:00</span><span>Fashion Lab</span><span>⌕</span><span>☰</span></div>
+      <div class="hero-card">
+        <img id="homeHero" alt="Daily fashion look" />
+        <div class="hero-copy">
+          <h1>Hi Jenny,<br>OOTD</h1>
+          <p>Get your daily look from trend signals and shoppable pieces.</p>
+        </div>
+      </div>
+      <form class="ask" id="homeAsk">
+        <input id="homeAskInput" value="Ask your AI stylist anything" aria-label="Ask stylist" />
+        <button class="icon-btn" type="submit" aria-label="Ask">↗</button>
+      </form>
+      <div class="quick-row">
+        <button class="quick" data-query="Style an item">Style an item<br><span class="sub">Build full outfits</span></button>
+        <button class="quick" data-query="What suits me">What suits me<br><span class="sub">Saved fit stats</span></button>
+      </div>
+      <div class="section-title">You may wanna try-on</div>
+      <div class="style-list" id="styleList"></div>
+      <div class="section-title">Explore more style</div>
+      <div class="feed-grid" id="feedGrid"></div>
+    </div>
+  </section>
+
+  <section class="panel assistant" aria-label="AI stylist workspace">
+    <div class="panel-h">
+      <div>
+        <h2>Ask your AI stylist anything</h2>
+        <div class="sub">Jenny · Beijing · Cloudy 18-25C · Updated today</div>
+      </div>
+      <span class="pill">Ask AI</span>
+    </div>
+    <div class="trend-tabs" id="trendTabs"></div>
+    <div class="chat" id="chat"></div>
+    <div class="chat-compose">
+      <input id="chatInput" value="通勤但不无聊，适合降温天气" aria-label="Styling request" />
+      <button class="icon-btn" id="sendBtn" aria-label="Generate">↗</button>
+    </div>
+  </section>
+
+  <section class="right-col">
+    <div class="panel tryon" aria-label="Look try-on and products">
+      <div class="look-hero">
+        <img id="lookHero" alt="Selected outfit look" />
+        <div class="look-overlay">
+          <div class="look-top"><span>‹ Fashion Lab</span><span>✦ Ask AI</span></div>
+          <button class="buy" type="button">Buy all</button>
+        </div>
+        <div class="price-stack" id="priceStack"></div>
+      </div>
+      <div class="refine">
+        <div class="refine-h">
+          <b>Refine this look</b>
+          <span class="sub">More look</span>
+        </div>
+        <div class="item-tabs" id="itemTabs"></div>
+        <div class="product-grid" id="productGrid"></div>
+      </div>
+      <div class="explain">
+        <div class="article-img"><img id="articleImg" alt="Outfit explanation" /></div>
+        <article>
+          <h3 id="articleTitle"></h3>
+          <p id="articleText"></p>
+          <ol class="reason-list" id="reasonList"></ol>
+        </article>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const imageUrl = (prompt, size = "portrait_4_3") =>
+  "https://copilot-cn.bytedance.net/api/ide/v1/text_to_image?prompt=" +
+  encodeURIComponent(prompt) + "&image_size=" + size;
+
+const trends = [
+  {
+    id:"city",
+    tab:"City Utility",
+    title:"Easy City Casual Look",
+    ask:"Inspirations for today's outfit",
+    mood:"通勤轻户外、低饱和中性色、清爽层次",
+    intro:"Cloudy in Beijing today, with cool mornings and warmer midday. A crisp white tee, relaxed overshirt and light-wash straight jeans keep things fresh and easy, while white sneakers anchor the look.",
+    image:"realistic street style editorial photo, young woman in beige trench coat, white tank top, light wash straight leg jeans, white sneakers, city street in spring, natural daylight, full body, fashion ecommerce lookbook",
+    article:"这套 look 抓住了近期 city utility 的核心：实穿廓形、干净浅色、可叠穿外套。它适合早晚温差明显的通勤日，也能从办公室自然切到晚间约会。",
+    reasons:["风衣提供结构感，解决基础白 T 过于单薄的问题。","直筒牛仔裤拉长比例，弱化通勤造型的正式感。","白色球鞋让整体更轻，不会被长外套压低重心。"],
+    products:{
+      Coat:[
+        ["Estée Lauder Double Weave Trench","No. 3N1 Ivory Beige","$32.20","tailored beige double breasted trench coat product photo on clean background, fashion ecommerce, realistic"],
+        ["Urban Rain Short Mac","Warm stone","$28.50","short beige rain mac jacket product photo, clean ecommerce background, realistic fabric texture"]
+      ],
+      Top:[
+        ["Ribbed Scoop Tank","Soft black","$16.00","black ribbed scoop neck tank top product photo on white background, realistic ecommerce"],
+        ["Crisp Cotton Tee","Optic white","$12.00","white cotton crew neck t shirt product photo on white background, realistic ecommerce"]
+      ],
+      Pants:[
+        ["High-rise Straight Jeans","Light vintage blue","$35.90","light wash high rise straight leg jeans product photo on white background, realistic ecommerce"],
+        ["Relaxed Tailored Trouser","Warm grey","$31.60","warm grey relaxed tailored trousers product photo, white background, realistic ecommerce"]
+      ],
+      Shoes:[
+        ["Minimal Court Sneaker","White leather","$29.00","minimal white leather sneaker product photo on white background, realistic ecommerce"],
+        ["Slim Loafer","Black polished","$34.00","black slim leather loafer product photo on white background, realistic ecommerce"]
+      ]
+    }
+  },
+  {
+    id:"soft",
+    tab:"Soft Minimal",
+    title:"Soft Neutral Weekend Look",
+    ask:"Make it softer",
+    mood:"奶油色、轻针织、松弛周末感",
+    intro:"For a slower weekend, pair a creamy knit vest with a fluid skirt and suede flats. The silhouette stays polished, but the texture makes it softer and warmer.",
+    image:"realistic fashion lookbook photo, young woman wearing cream knit vest, white midi skirt, suede ballet flats, minimal cafe street, soft spring daylight, full body",
+    article:"近期 soft minimal 不再是纯白极简，而是用针织、麂皮、奶油色制造更柔和的质感。它适合周末、咖啡约会和轻度出游。",
+    reasons:["针织背心替代普通衬衫，直接提升触感与层次。","白色半裙保留清爽感，同时比长裤更有季节变化。","麂皮鞋让颜色过渡更自然，避免全身过白。"],
+    products:{
+      Coat:[
+        ["Light Cardigan Jacket","Oat milk","$26.80","oatmeal light cardigan jacket product photo, ecommerce white background, realistic knit texture"],
+        ["Soft Linen Blazer","Ivory","$39.00","ivory linen blazer product photo on white background, realistic ecommerce"]
+      ],
+      Top:[
+        ["Cream Knit Vest","Vanilla cream","$22.40","cream knit vest product photo on white background, realistic ecommerce"],
+        ["Fine Rib Long Sleeve","Warm white","$18.00","warm white fine rib long sleeve top product photo, white background, realistic ecommerce"]
+      ],
+      Pants:[
+        ["Fluid Midi Skirt","Chalk white","$30.20","chalk white fluid midi skirt product photo on white background, realistic ecommerce"],
+        ["Soft Wide-leg Pants","Pale taupe","$33.10","pale taupe soft wide leg pants product photo on white background, realistic ecommerce"]
+      ],
+      Shoes:[
+        ["Suede Ballet Flat","Taupe","$24.90","taupe suede ballet flats product photo on white background, realistic ecommerce"],
+        ["Low Slingback","Ivory","$31.00","ivory low heel slingback shoes product photo, white background, realistic ecommerce"]
+      ]
+    }
+  },
+  {
+    id:"night",
+    tab:"After-dark Denim",
+    title:"Calm High-end Career Style",
+    ask:"Make it office-friendly",
+    mood:"深色皮革、短夹克、金属配饰",
+    intro:"A cropped leather jacket and clean denim create a sharper after-work outfit. Keep the inner layer simple and let hardware details add the current polished edge.",
+    image:"realistic editorial street style photo, young woman in black cropped leather jacket, white fitted top, dark straight jeans, silver belt, downtown evening, full body fashion lookbook",
+    article:"今年的 denim look 更强调利落剪裁和配饰细节。短皮衣负责态度，直筒牛仔负责日常可穿性，适合从会议后直接进入晚间场景。",
+    reasons:["短夹克抬高腰线，让厚重皮革不显压身。","白色内搭给黑色皮衣留出呼吸感。","银色腰带与小包形成视觉锚点，增加造型完成度。"],
+    products:{
+      Coat:[
+        ["Cropped Leather Jacket","Black","$48.00","black cropped leather jacket product photo, ecommerce white background, realistic"],
+        ["Boxy Twill Jacket","Charcoal","$36.50","charcoal boxy twill jacket product photo on white background, realistic ecommerce"]
+      ],
+      Top:[
+        ["Fitted Baby Tee","Clean white","$15.50","white fitted baby tee product photo on white background, realistic ecommerce"],
+        ["Square-neck Tank","Black","$16.00","black square neck tank product photo on white background, realistic ecommerce"]
+      ],
+      Pants:[
+        ["Dark Straight Jeans","Washed black","$38.80","washed black straight leg jeans product photo on white background, realistic ecommerce"],
+        ["Pinstripe Suit Pants","Deep navy","$42.00","deep navy pinstripe suit pants product photo on white background, realistic ecommerce"]
+      ],
+      Shoes:[
+        ["Pointed Ankle Boot","Black","$46.00","black pointed ankle boots product photo on white background, realistic ecommerce"],
+        ["Metallic Mary Jane","Silver","$33.20","silver metallic mary jane shoes product photo, white background, realistic ecommerce"]
+      ]
+    }
+  }
+];
+
+let trend = trends[0];
+let category = "Coat";
+let activeProduct = 0;
+
+function $(id){ return document.getElementById(id); }
+
+function renderHome(){
+  $("homeHero").src = imageUrl("realistic mobile fashion app hero image, stylish young woman wearing black sunglasses and leather jacket, clean editorial fashion, soft daylight, ecommerce app", "portrait_4_3");
+  const list = $("styleList");
+  list.innerHTML = trends.map(t => `
+    <button class="style-card ${t.id === trend.id ? "active" : ""}" data-trend="${t.id}">
+      <div>
+        <h3>${t.title}</h3>
+        <p>${t.mood}</p>
+        <span class="try">Try-on look</span>
+      </div>
+      <div class="style-img"><img alt="${t.title}" src="${imageUrl(t.image, "portrait_4_3")}"></div>
+    </button>
+  `).join("");
+  list.querySelectorAll("[data-trend]").forEach(btn => btn.onclick = () => setTrend(btn.dataset.trend));
+
+  $("feedGrid").innerHTML = trends.concat(trends.slice(0,1)).map((t, i) => `
+    <button class="feed" data-trend="${t.id}">
+      <div class="style-img"><img alt="${t.tab}" src="${imageUrl(i % 2 ? t.products.Coat[0][3] : t.image, "square")}"></div>
+      <p>${t.tab}<span>Try on style</span></p>
+    </button>
+  `).join("");
+  $("feedGrid").querySelectorAll("[data-trend]").forEach(btn => btn.onclick = () => setTrend(btn.dataset.trend));
+}
+
+function renderTabs(){
+  $("trendTabs").innerHTML = trends.map(t => `<button class="tab ${t.id === trend.id ? "active" : ""}" data-trend="${t.id}">${t.tab}</button>`).join("");
+  $("trendTabs").querySelectorAll("[data-trend]").forEach(btn => btn.onclick = () => setTrend(btn.dataset.trend));
+  const cats = Object.keys(trend.products);
+  $("itemTabs").innerHTML = cats.map(c => `<button class="tab ${c === category ? "active" : ""}" data-cat="${c}">${c}</button>`).join("");
+  $("itemTabs").querySelectorAll("[data-cat]").forEach(btn => {
+    btn.onclick = () => { category = btn.dataset.cat; activeProduct = 0; renderProducts(); renderTabs(); };
+  });
+}
+
+function renderChat(){
+  $("chat").innerHTML = `
+    <div class="bubble user">${trend.ask}</div>
+    <div class="bubble ai">正在结合近期趋势信号、天气场景和你的日常偏好，生成可直接购买的搭配方案。</div>
+    <div class="answer-card">
+      <div class="answer-body">
+        <h3>${trend.title}</h3>
+        <p>${trend.intro}</p>
+        <span class="pill">Trend: ${trend.tab}</span>
+        <span class="pill">Scene: daily styling</span>
+      </div>
+      <div class="look-board">
+        ${trends.map(t => `
+          <button class="mini-look ${t.id === trend.id ? "active" : ""}" data-trend="${t.id}">
+            <div class="style-img"><img alt="${t.title}" src="${imageUrl(t.image, "portrait_4_3")}"></div>
+            <b>${t.title}</b>
+            <span>${t.mood}</span>
+          </button>
+        `).join("")}
+      </div>
+    </div>
+  `;
+  $("chat").querySelectorAll("[data-trend]").forEach(btn => btn.onclick = () => setTrend(btn.dataset.trend));
+}
+
+function renderProducts(){
+  const products = trend.products[category];
+  $("lookHero").src = imageUrl(trend.image, "portrait_4_3");
+  $("priceStack").innerHTML = Object.keys(trend.products).slice(0,4).map(cat => {
+    const p = trend.products[cat][0];
+    return `<div class="price-chip"><img alt="${p[0]}" src="${imageUrl(p[3], "square")}"><b>${p[2]}</b></div>`;
+  }).join("");
+  $("productGrid").innerHTML = products.map((p, idx) => `
+    <div class="product ${idx === activeProduct ? "active" : ""}" data-product="${idx}" role="button" tabindex="0">
+      <div class="product-img"><img alt="${p[0]}" src="${imageUrl(p[3], "square")}"></div>
+      <div class="product-copy">
+        <b>${p[0]}</b>
+        <span>${p[1]}</span>
+        <strong>${p[2]}</strong>
+        <a href="https://www.tiktok.com/shop" target="_blank" rel="noreferrer">View item</a>
+      </div>
+    </div>
+  `).join("");
+  $("productGrid").querySelectorAll("[data-product]").forEach(btn => {
+    btn.onclick = (e) => {
+      if(e.target.tagName === "A") return;
+      activeProduct = Number(btn.dataset.product);
+      renderProducts();
+    };
+    btn.onkeydown = (e) => {
+      if(e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        activeProduct = Number(btn.dataset.product);
+        renderProducts();
+      }
+    };
+  });
+  const selected = products[activeProduct];
+  $("articleImg").src = imageUrl("realistic flat lay outfit explanation image featuring " + selected[3] + ", paired with matching clothes, editorial ecommerce, clean daylight", "landscape_4_3");
+  $("articleTitle").textContent = selected[0] + " 搭配讲解";
+  $("articleText").textContent = trend.article;
+  $("reasonList").innerHTML = trend.reasons.map(r => `<li>${r}</li>`).join("");
+}
+
+function setTrend(id){
+  trend = trends.find(t => t.id === id) || trends[0];
+  category = "Coat";
+  activeProduct = 0;
+  renderAll();
+}
+
+function renderAll(){
+  renderHome();
+  renderTabs();
+  renderChat();
+  renderProducts();
+}
+
+$("sendBtn").onclick = () => {
+  const text = $("chatInput").value.toLowerCase();
+  if(text.includes("柔") || text.includes("周末") || text.includes("约会")) setTrend("soft");
+  else if(text.includes("夜") || text.includes("皮") || text.includes("酷")) setTrend("night");
+  else setTrend("city");
+};
+$("homeAsk").onsubmit = (e) => { e.preventDefault(); $("sendBtn").click(); };
+document.querySelectorAll("[data-query]").forEach(btn => btn.onclick = () => {
+  $("chatInput").value = btn.dataset.query === "Style an item" ? "用一件风衣搭一套完整通勤 look" : "根据我的身材和通勤场景推荐显高穿搭";
+  $("sendBtn").click();
+});
+
+renderAll();
+</script>
+</body>
+</html>
