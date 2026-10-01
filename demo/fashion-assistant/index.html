@@ -24,146 +24,69 @@
   body {
     font-family:var(--font);
     color:var(--ink);
-    background:
-      linear-gradient(90deg, rgba(226,220,210,.72) 1px, transparent 1px),
-      linear-gradient(180deg, rgba(226,220,210,.62) 1px, transparent 1px),
-      #f7f4ee;
-    background-size:32px 32px;
+    background:#f5f5f5;
+    -webkit-font-smoothing:antialiased;
   }
   a { color:inherit; text-decoration:none; }
   button, input { font:inherit; }
-  button { cursor:pointer; }
-  .topbar {
-    height:56px;
-    display:flex;
-    align-items:center;
-    gap:14px;
-    padding:0 22px;
-    background:rgba(255,255,255,.88);
-    border-bottom:1px solid var(--line);
-    position:sticky;
-    top:0;
-    z-index:10;
-    backdrop-filter:blur(14px);
+  button { cursor:pointer; color:inherit; }
+  button:focus-visible, a:focus-visible, input:focus-visible {
+    outline:2px solid #3b6d57;
+    outline-offset:3px;
   }
-  .back {
-    width:34px;
-    height:34px;
-    border-radius:50%;
-    border:1px solid var(--line);
-    background:#fff;
-    display:grid;
-    place-items:center;
-    font-size:22px;
-    font-weight:700;
-  }
-  .brand { font-weight:850; font-size:20px; letter-spacing:-.1px; }
-  .status {
-    margin-left:auto;
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    border:1px solid var(--line);
-    background:#fff;
-    border-radius:999px;
-    padding:7px 12px;
-    color:#555;
-    font-size:13px;
-    font-weight:750;
-  }
-  .status i { width:8px; height:8px; border-radius:50%; background:var(--green); display:block; }
+  img { display:block; width:100%; height:100%; object-fit:cover; }
   .stage {
-    min-height:calc(100vh - 56px);
+    min-height:100dvh;
     display:grid;
     place-items:start center;
-    padding:28px 18px 42px;
+    padding:24px 0;
   }
   .phone {
     width:min(390px, 100%);
-    border:8px solid #111;
-    border-radius:30px;
-    background:#fbfaf8;
-    box-shadow:var(--shadow);
+    background:#fff;
+    box-shadow:0 8px 36px #0000000b;
     overflow:hidden;
   }
   .screen {
-    height:780px;
-    overflow:auto;
-    background:#fbfaf8;
+    height:min(844px, calc(100dvh - 48px));
+    overflow-y:auto;
+    overflow-x:hidden;
+    background:#fff;
     scrollbar-width:none;
+    overscroll-behavior-y:contain;
   }
   .screen::-webkit-scrollbar { width:0; height:0; }
   .phone-head {
-    height:42px;
+    height:48px;
     display:flex;
     align-items:center;
-    gap:10px;
+    justify-content:space-between;
     padding:0 14px;
-    font-size:11px;
-    font-weight:850;
-    background:rgba(251,250,248,.96);
+    font-size:13px;
+    font-weight:700;
+    background:#ffffffed;
     position:sticky;
     top:0;
     z-index:5;
   }
-  .phone-head .time { margin-right:auto; }
   .phone-head .title { position:absolute; left:0; right:0; text-align:center; pointer-events:none; }
   .nav-btn {
-    width:26px;
-    height:26px;
+    width:36px;
+    height:36px;
     border:0;
     background:transparent;
     border-radius:50%;
-    font-size:18px;
-    font-weight:850;
+    font-size:25px;
     display:grid;
     place-items:center;
     z-index:1;
   }
-  .icon-text { border:0; background:transparent; font-size:11px; font-weight:850; z-index:1; }
-  .hero {
-    margin:0 12px 12px;
-    min-height:164px;
-    border-radius:18px;
-    overflow:hidden;
-    position:relative;
-    background:#ddd;
-  }
-  img { display:block; width:100%; height:100%; object-fit:cover; }
-  .hero::after, .tryon-hero::after {
+  .icon-text { border:0; background:transparent; font-size:11px; font-weight:700; z-index:1; }
+  .tryon-hero::after {
     content:"";
     position:absolute;
     inset:0;
     background:linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.52));
-  }
-  .hero-copy {
-    position:absolute;
-    left:14px;
-    right:14px;
-    bottom:14px;
-    z-index:1;
-    color:#fff;
-  }
-  .hero-copy h1 { margin:0; font-size:24px; line-height:1.02; letter-spacing:-.3px; }
-  .hero-copy p { margin:6px 0 0; font-size:12px; opacity:.95; }
-  .ask {
-    margin:0 12px 10px;
-    display:flex;
-    align-items:center;
-    gap:8px;
-    border:1px solid var(--line);
-    border-radius:999px;
-    background:#fff;
-    padding:8px 9px 8px 13px;
-  }
-  .ask input {
-    min-width:0;
-    flex:1;
-    border:0;
-    outline:0;
-    background:transparent;
-    color:#333;
-    font-size:12px;
   }
   .round {
     width:28px;
@@ -176,78 +99,7 @@
     display:grid;
     place-items:center;
   }
-  .quick-row {
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:8px;
-    margin:0 12px 16px;
-  }
-  .quick {
-    min-height:48px;
-    border:1px solid var(--line);
-    border-radius:12px;
-    background:#fff;
-    padding:9px 10px;
-    text-align:left;
-    font-size:11px;
-    font-weight:850;
-  }
-  .quick span { display:block; color:var(--muted); font-weight:700; margin-top:1px; }
-  .section-title {
-    margin:18px 14px 10px;
-    font-size:13px;
-    font-weight:900;
-  }
-  .style-stack { display:grid; gap:10px; padding:0 12px; }
-  .style-card {
-    display:grid;
-    grid-template-columns:1fr 100px;
-    gap:10px;
-    min-height:136px;
-    border:1px solid var(--line);
-    border-radius:15px;
-    background:#fff;
-    padding:10px;
-    text-align:left;
-  }
-  .style-card.active { border-color:#111; box-shadow:0 0 0 2px #111 inset; }
-  .style-card h3 { margin:0 0 7px; font-size:13px; line-height:1.22; }
-  .style-card p { margin:0; color:var(--muted); font-size:11px; line-height:1.35; }
   .thumb { border-radius:11px; overflow:hidden; background:#e8e4dc; }
-  .try {
-    margin-top:10px;
-    display:inline-flex;
-    border:0;
-    border-radius:999px;
-    padding:6px 10px;
-    background:#111;
-    color:#fff;
-    font-size:11px;
-    font-weight:850;
-  }
-  .look-row {
-    display:grid;
-    grid-template-columns:1.05fr .95fr;
-    gap:8px;
-    padding:0 12px;
-  }
-  .look-card, .feed-card {
-    border:1px solid var(--line);
-    border-radius:13px;
-    overflow:hidden;
-    background:#fff;
-    text-align:left;
-  }
-  .look-card .thumb { border-radius:0; aspect-ratio:3/4; }
-  .look-card p, .feed-card p { margin:8px; font-size:11px; font-weight:800; line-height:1.25; }
-  .look-card span, .feed-card span { display:block; color:var(--muted); font-weight:650; margin-top:3px; }
-  .feed-grid {
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:8px;
-    padding:0 12px 18px;
-  }
-  .feed-card .thumb { border-radius:0; aspect-ratio:1/1; }
   .view { display:none; min-height:100%; }
   .view.active { display:block; }
 
@@ -446,23 +298,15 @@
   .story p { margin:0 0 8px; color:#444; font-size:12px; line-height:1.56; }
   .story ol { margin:0; padding-left:18px; color:#555; font-size:12px; line-height:1.58; }
 
-  @media (max-width:560px) {
-    .topbar { padding:0 12px; }
-    .brand { font-size:18px; }
-    .status { display:none; }
-    .stage { padding:12px 10px 24px; place-items:start center; }
-    .phone { border-width:6px; border-radius:26px; }
-    .screen { height:calc(100vh - 92px); min-height:680px; }
+  @media (max-width:430px) {
+    .stage { padding:0; }
+    .phone { width:100%; box-shadow:none; }
+    .screen { height:100dvh; }
   }
 </style>
+<link rel="stylesheet" href="home.css?v=20261001" />
 </head>
 <body>
-<header class="topbar">
-  <a class="back" href="../index.html" aria-label="返回 Demo 入口">‹</a>
-  <div class="brand">Fashion Lab</div>
-  <div class="status"><i></i><span>AI stylist is ready</span></div>
-</header>
-
 <main class="stage">
   <section class="phone" aria-label="Fashion Lab shopping assistant">
     <div class="screen">
@@ -487,7 +331,7 @@ const trends = [
     ask:"Inspirations for today's outfit",
     answer:"Cloudy in Beijing today, with cool mornings and a warmer midday. A crisp white tee, relaxed overshirt and light-wash straight jeans keep things fresh and easy, while white sneakers make the look clean enough for work and casual enough for coffee hours.",
     hero:"realistic street style editorial photo, young woman wearing beige trench coat, black tank top, light wash straight leg jeans, white sneakers, new york city street, full body fashion ecommerce lookbook, natural daylight",
-    card:"realistic fashion app card, young woman in beige trench coat and blue jeans, full body, clean street style, ecommerce lookbook",
+    card:"full body editorial photograph of a woman wearing a white and navy striped tee tucked into light blue straight jeans, white sneakers, by a sunlit stone wall, realistic fashion photography, no text",
     flatlay:"realistic flat lay outfit, beige trench coat, white tee, light blue straight jeans, white sneakers, small leather bag, clean ecommerce editorial",
     article:"这套 look 抓住近期 city utility 的核心：实穿廓形、干净浅色、可叠穿外套。它适合早晚温差明显的通勤日，也能自然切换到下班后的轻社交场景。",
     reasons:["长外套建立利落轮廓，解决基础内搭过于单薄的问题。","直筒牛仔裤拉长比例，让通勤造型更轻松。","白色球鞋降低正式感，整体更适合日常高频穿着。"],
@@ -518,7 +362,7 @@ const trends = [
     ask:"Make it softer",
     answer:"For a slower weekend, pair a creamy knit vest with a fluid skirt and suede flats. The silhouette stays polished, but the texture makes it warmer and less formal.",
     hero:"realistic fashion lookbook photo, young woman wearing cream knit vest, white midi skirt, suede ballet flats, minimal cafe street, soft spring daylight, full body",
-    card:"realistic fashion ecommerce card, woman in cream knit vest and white midi skirt, warm minimal street style, full body",
+    card:"full body editorial photograph of a woman in a cream knit top and ivory flowing midi skirt, standing in a leafy courtyard, warm afternoon light, realistic fashion photography, no text",
     flatlay:"realistic flat lay outfit, cream knit vest, white midi skirt, suede ballet flats, small woven bag, soft daylight, ecommerce editorial",
     article:"Soft minimal 的重点不是全白，而是通过针织、麂皮和奶油色制造柔和质感。它适合周末、咖啡约会和轻度出游。",
     reasons:["针织背心替代普通衬衫，直接提升触感与层次。","白色半裙保留清爽感，同时比长裤更有季节变化。","麂皮鞋让颜色过渡更自然，避免全身过白。"],
@@ -549,7 +393,7 @@ const trends = [
     ask:"Make it office-friendly",
     answer:"A cropped leather jacket and clean denim create a sharper after-work outfit. Keep the inner layer simple and let hardware details add the current polished edge.",
     hero:"realistic editorial street style photo, young woman in black cropped leather jacket, white fitted top, dark straight jeans, silver belt, downtown evening, full body fashion lookbook",
-    card:"realistic fashion ecommerce card, young woman wearing black cropped leather jacket and dark jeans, calm high end career style, full body",
+    card:"full length editorial photograph of a woman with short wavy dark hair wearing a black leather bomber jacket over a white crop top, black wide leg jeans with a silver chain belt, standing against a pale weathered concrete wall, realistic fabric, straight on camera, boots visible, no text",
     flatlay:"realistic flat lay outfit, black leather jacket, white fitted top, dark straight jeans, silver belt, black ankle boots, ecommerce editorial",
     article:"Denim look 近期更强调利落剪裁和配饰细节。短皮衣负责态度，直筒牛仔负责日常可穿性，适合从会议后直接进入晚间场景。",
     reasons:["短夹克抬高腰线，让厚重皮革不显压身。","白色内搭给黑色皮衣留出呼吸感。","银色腰带与小包形成视觉锚点，增加造型完成度。"],
@@ -571,81 +415,169 @@ const trends = [
         ["Metallic Mary Jane","Silver","$33.20","silver metallic mary jane shoes product photo, white background, realistic ecommerce"]
       ]
     }
+  },
+  {
+    id:"tailored",
+    tab:"Relaxed Tailoring",
+    title:"Intellectual Design-led Style",
+    mood:"Soft tailoring, long lines, effortless layers",
+    ask:"How do I style a relaxed suit?",
+    answer:"Start with an ivory tee and a softly tailored taupe suit. Leave the blazer open to keep a long, clean line, then finish with a small black bag and slim loafers.",
+    hero:"full length editorial photograph of a woman in a relaxed light taupe blazer and matching wide leg tailored trousers, white tee, small black shoulder bag and black loafers, standing outside a grey stone building, soft natural light, head to toe, no text",
+    flatlay:"photorealistic flat lay of light taupe blazer, white cotton tee, taupe wide leg trousers, black loafers and a small black leather bag, clean ivory background, no text",
+    article:"用同色西装外套与长裤建立纵向线条，白色内搭提亮上半身。外套敞开穿、裤脚轻覆鞋面，让正式单品也有松弛感。",
+    reasons:["外套与长裤保持同色，减少腰部视觉分割。","白色内搭与黑色鞋包形成清晰的明暗层次。","单穿棕色马甲也能延续这套搭配的利落轮廓。"],
+    products:{
+      Coat:[
+        ["Relaxed Tailored Blazer","Light taupe","$39.00","light taupe relaxed tailored blazer, isolated product photograph, pale grey studio background, no text"],
+        ["Single-breasted Wool Blazer","Charcoal","$42.00","charcoal single breasted wool blazer, isolated product photograph, pale grey studio background, no text"]
+      ],
+      Top:[
+        ["Cotton Crew-neck Tee","White","$12.00","white cotton crew neck t shirt product photo on white background, realistic ecommerce"],
+        ["Tailored Button Vest","Walnut brown","$25.50","walnut brown tailored waistcoat with four buttons and two welt pockets, front view isolated product photograph, light grey background, no text"]
+      ],
+      Pants:[
+        ["Pleated Wide-leg Trousers","Light taupe","$33.10","light taupe pleated wide leg tailored trousers, isolated product photograph, light grey background, no text"],
+        ["Straight Suit Trousers","Espresso","$31.60","espresso brown straight leg tailored trousers, isolated product photograph, light grey background, no text"]
+      ],
+      Shoes:[
+        ["Slim Loafer","Black polished","$34.00","black slim leather loafer product photo on white background, realistic ecommerce"],
+        ["Suede Ballet Flat","Taupe","$24.90","taupe suede ballet flats product photo on white background, realistic ecommerce"]
+      ]
+    }
   }
 ];
 
 let activeTrend = trends[0];
 let activeCat = "Coat";
 let activeProduct = 0;
+let chatQuery = "";
+let currentView = "home";
+const navigation = [];
+const scrollPositions = { home:0, chat:0, tryon:0 };
+const chosenProducts = { Coat:0, Top:0, Pants:0, Shoes:0 };
 
 const $ = (id) => document.getElementById(id);
+const escapeHTML = (value) => String(value).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const byId = (id) => trends.find(t => t.id === id);
+const icons = {
+  back:'<path d="m14 6-6 6 6 6"/>',
+  arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',
+  mic:'<rect x="9" y="3" width="6" height="12" rx="3"/><path d="M6 10v2a6 6 0 0 0 12 0v-2M12 18v3m-3 0h6"/>',
+  item:'<path d="M4 10v10h16V9M4 5h8m-3-3 3 3-3 3M6 12l6 3 6-3m-6 3v5"/><path d="m16 3 1.2 2.8L20 7l-2.8 1.2L16 11l-1.2-2.8L12 7l2.8-1.2z"/>',
+  fit:'<path d="m8 2 4 4-4 4-4-4zm8 12 4 4-4 4-4-4zM16 2l4 4-4 4-4-4zM8 14l4 4-4 4-4-4z"/>',
+  sparkle:'<path d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3zm8 0v4m-2-2h4"/>',
+  signal:'<path d="M4 18v-3m5 3v-6m5 6V8m5 10V4" stroke-width="3"/>',
+  wifi:'<path d="M3 8a14 14 0 0 1 18 0M6 11a9 9 0 0 1 12 0m-9 3a4 4 0 0 1 6 0"/><circle cx="12" cy="18" r="1" fill="currentColor"/>',
+  battery:'<rect x="2" y="6" width="18" height="12" rx="2"/><path d="M22 10v4"/><rect x="4" y="8" width="14" height="8" rx="1" fill="currentColor" stroke="none"/>'
+};
+const icon = (name) => `<svg class="ui-icon ${name}" viewBox="0 0 24 24" aria-hidden="true">${icons[name]}</svg>`;
 
 function phoneHead({ back = false, right = "Ask AI" } = {}) {
   return `
     <div class="phone-head">
-      <span class="time">8:00</span>
-      ${back ? `<button class="nav-btn" data-action="home" aria-label="Back">‹</button>` : ""}
+      ${back ? `<button class="nav-btn" data-action="back" aria-label="Back">‹</button>` : ""}
       <span class="title">Fashion Lab</span>
-      <button class="icon-text" data-action="chat">${right}</button>
+      <button class="icon-text" data-action="${right === "Close" ? "back" : "chat"}">${right}</button>
     </div>
   `;
 }
 
-function img(prompt, size, alt) {
-  return `<img src="${imageUrl(prompt, size)}" alt="${alt}">`;
+function img(prompt, size, alt, loading = "lazy") {
+  return `<img src="${imageUrl(prompt, size)}" alt="${escapeHTML(alt)}" loading="${loading}" decoding="async">`;
+}
+
+function garmentStrip(t, categories = ["Coat", "Pants", "Shoes"]) {
+  return categories.map(cat => `<span>${img(t.products[cat][0][3], "square", t.products[cat][0][0])}</span>`).join("");
+}
+
+function feedProduct(id, cat, index = 0, tall = false) {
+  const p = byId(id).products[cat][index];
+  const action = `data-action="shop-item" data-trend="${id}" data-cat="${cat}" data-product="${index}"`;
+  return `<article class="feed-product ${tall ? "tall" : ""}">
+    <button class="feed-product-photo" ${action} aria-label="Try on ${escapeHTML(p[0])}">${img(p[3], "square", p[0])}</button>
+    <div class="feed-product-copy"><b>${p[0]}</b><small>${p[1]}</small><strong>${p[2]}</strong></div>
+    <button class="soft-cta" ${action}>Try it on</button>
+  </article>`;
+}
+
+function feedLook(id) {
+  const t = byId(id);
+  return `<button class="feed-look" data-action="tryon" data-trend="${id}" aria-label="Try on ${escapeHTML(t.title)}">
+    ${img(t.hero, "portrait_4_3", t.title)}
+    <span class="feed-items">${garmentStrip(t, ["Coat", "Top", "Pants", "Shoes"])}</span>
+    <span class="soft-cta">Try-on style</span>
+  </button>`;
 }
 
 function renderHome() {
+  const night = byId("night");
+  const styles = [
+    { id:"soft", name:"Cool Aesthetic", subtitle:"Avant-Garde Woman" },
+    { id:"tailored", name:"Quiet Confidence", subtitle:"Everyday Tailoring" },
+    { id:"city", name:"City Essentials", subtitle:"Effortless Everyday" }
+  ];
   $("homeView").innerHTML = `
-    ${phoneHead({ right:"Ask AI" })}
-    <div class="hero">
-      ${img("realistic mobile fashion app hero image, stylish young woman wearing black sunglasses and black leather jacket, clean editorial fashion, soft daylight, ecommerce app", "portrait_4_3", "Fashion daily look")}
-      <div class="hero-copy">
-        <h1>Hi Jenny,<br>OOTD</h1>
-        <p>Get your daily look</p>
+    <div class="home-intro">
+      <div class="device-status" aria-hidden="true"><span>8:00</span><span>${icon("signal")}${icon("wifi")}${icon("battery")}</span></div>
+      <nav class="home-nav" aria-label="Fashion Lab"><a href="../index.html" aria-label="返回 Demo 入口">${icon("back")}</a><strong>Fashion Lab</strong></nav>
+      <div class="ootd">
+        <div class="ootd-portrait">${img("editorial studio portrait photograph of a fashionable young adult woman wearing a black baseball cap and narrow black sunglasses, oversized black and cream varsity leather jacket open over a black cropped top, framed from head to hip, facing forward, isolated on a pure white background, high key studio lighting, realistic skin and leather texture, no shadows on background, no text, no phone, no interface", "portrait_4_3", "Black cap and two-tone jacket daily look", "eager")}</div>
+        <div class="ootd-copy"><h1>Hi Jenny,<br>OOTD</h1><p>Get your daily look</p><button data-action="chat" data-query="Inspirations for today's outfit" aria-label="Get your daily look">${icon("arrow")}</button></div>
+      </div>
+      <form class="home-ask" id="homeAsk">
+        <input id="homeQuery" placeholder="Ask your AI stylist anything" aria-label="Ask your AI stylist anything" autocomplete="off">
+        <button type="submit" aria-label="Ask AI">${icon("mic")}</button>
+      </form>
+      <div class="home-shortcuts" aria-label="Styling shortcuts">
+        <button class="shortcut" data-action="chat" data-trend="night" data-query="How can I style a black leather jacket?">${icon("item")}<span><b>Style an item</b><small>Build full outfits</small></span></button>
+        <button class="shortcut" data-action="chat" data-query="Help me find a look that suits me">${icon("fit")}<span><b>What suits me</b><small>Find my style</small></span></button>
+        <button class="shortcut icon-only" data-action="chat" data-query="Surprise me with a new look" aria-label="Discover a new look">${icon("sparkle")}</button>
       </div>
     </div>
-    <form class="ask" data-action="chat">
-      <input value="Ask your AI stylist anything" aria-label="Ask your AI stylist anything">
-      <button class="round" type="submit" aria-label="Ask">↗</button>
-    </form>
-    <div class="quick-row">
-      <button class="quick" data-action="chat" data-query="Style an item">Style an item<span>Build full outfits</span></button>
-      <button class="quick" data-action="chat" data-query="What suits me">What suits me<span>Saved fit stats</span></button>
-    </div>
-    <div class="section-title">You may wanna try-on</div>
-    <div class="style-stack">
-      ${trends.map(t => `
-        <button class="style-card ${t.id === activeTrend.id ? "active" : ""}" data-action="tryon" data-trend="${t.id}">
-          <div>
-            <h3>${t.title}</h3>
-            <p>${t.mood}</p>
-            <span class="try">Try-on look</span>
-          </div>
-          <div class="thumb">${img(t.card, "portrait_4_3", t.title)}</div>
-        </button>
-      `).join("")}
-    </div>
-    <div class="section-title">Intellectual Design-led Style</div>
-    <div class="look-row">
-      <button class="look-card" data-action="tryon" data-trend="soft">
-        <div class="thumb">${img(trends[1].hero, "portrait_4_3", trends[1].title)}</div>
-        <p>Cool Aesthetic<span>Avant-garde woman</span></p>
-      </button>
-      <button class="look-card" data-action="chat" data-trend="soft">
-        <div class="thumb">${img(trends[1].flatlay, "portrait_4_3", "Soft minimal outfit")}</div>
-        <p>Cool AI<span>Style this item</span></p>
-      </button>
-    </div>
-    <div class="section-title">Explore more style</div>
-    <div class="feed-grid">
-      ${trends.concat(trends).slice(0,6).map((t, idx) => `
-        <button class="feed-card" data-action="${idx % 2 ? "tryon" : "chat"}" data-trend="${t.id}">
-          <div class="thumb">${img(idx % 2 ? t.products.Coat[0][3] : t.card, "square", t.tab)}</div>
-          <p>${t.tab}<span>${idx % 2 ? t.products.Coat[0][2] : "Try-on style"}</span></p>
-        </button>
-      `).join("")}
-    </div>
+    <section class="home-section" aria-labelledby="featuredHeading">
+      <h2 id="featuredHeading">You may wanna try-on</h2>
+      <div class="featured-look">
+        <div class="feature-item">
+          <h3>Calm, High-End<br>Career Style</h3>
+          <button class="feature-garment" data-action="shop-item" data-trend="night" data-cat="Coat" aria-label="Style the leather jacket">${img(night.products.Coat[0][3], "square", "Black leather jacket", "eager")}</button>
+          <button class="soft-cta" data-action="tryon" data-trend="night">Try-on look</button>
+        </div>
+        <button class="feature-model" data-action="tryon" data-trend="night" aria-label="Try on Calm High-End Career Style">${img(night.card, "portrait_4_3", "Leather jacket styled with a white top and dark denim", "eager")}</button>
+      </div>
+    </section>
+    <section class="home-section" aria-labelledby="styleHeading">
+      <h3 id="styleHeading">Intellectual Design-Led Style</h3>
+      <div class="swipe-shelf" id="styleShelf" role="region" aria-label="Browse styles" tabindex="0">
+        ${styles.map(s => {
+          const t = byId(s.id);
+          return `<button class="style-tile" data-action="chat" data-trend="${s.id}" data-query="Show me how to wear ${s.name}">
+            <div class="style-collage"><div class="style-model">${img(t.card || t.hero, "portrait_4_3", s.name)}</div><div class="garment-strip">${garmentStrip(t)}</div></div>
+            <div class="style-caption"><span><b>${s.name}</b><small>${s.subtitle}</small></span>${icon("arrow")}</div>
+          </button>`;
+        }).join("")}
+      </div>
+    </section>
+    <section class="home-section" aria-labelledby="lookHeading">
+      <h3 id="lookHeading">Intellectual Design-Led Style</h3>
+      <div class="swipe-shelf" id="lookShelf" role="region" aria-label="Browse shoppable looks" tabindex="0">
+        ${["tailored", "night", "city"].map(id => {
+          const t = byId(id);
+          return `<button class="look-tile" data-action="tryon" data-trend="${id}" aria-label="Try on ${t.tab}">
+            ${img(t.hero, "portrait_4_3", t.title)}
+            <span class="look-items garment-strip">${garmentStrip(t)}</span><span class="soft-cta">Try-on look</span>
+          </button>`;
+        }).join("")}
+      </div>
+    </section>
+    <section class="home-section" aria-labelledby="exploreHeading">
+      <h2 id="exploreHeading">Explore more style</h2>
+      <div class="feed-columns">
+        <div class="feed-column">${feedLook("city")}${feedProduct("tailored", "Top", 1)}${feedProduct("tailored", "Pants", 1, true)}${feedLook("night")}</div>
+        <div class="feed-column">${feedProduct("city", "Coat")}${feedLook("soft")}${feedProduct("city", "Top", 0, true)}${feedProduct("soft", "Shoes")}</div>
+      </div>
+    </section>
+    <p class="home-end">A little inspiration, a look that's you.</p>
   `;
 }
 
@@ -653,8 +585,8 @@ function renderChat() {
   $("chatView").innerHTML = `
     ${phoneHead({ back:true, right:"Close" })}
     <div class="chat-body">
-      <div class="bubble user">${activeTrend.ask}</div>
-      <div class="bubble ai">Based on your local weather, saved fit stats, and current trend signals, here is the best direction.</div>
+      <div class="bubble user">${escapeHTML(chatQuery || activeTrend.ask)}</div>
+      <div class="bubble ai">Let's build your look around ${escapeHTML(activeTrend.tab.toLowerCase())}. Explore the pieces below, or tell me what you would change.</div>
       <div class="answer">
         <div class="answer-copy">
           <h2>${activeTrend.title}</h2>
@@ -677,10 +609,10 @@ function renderChat() {
         </button>
       </div>
     </div>
-    <div class="composer">
-      <input id="chatInput" value="Tell me what to change..." aria-label="Tell me what to change">
-      <button class="round" data-action="smart-chat" aria-label="Send">↗</button>
-    </div>
+    <form class="composer" id="chatForm">
+      <input id="chatInput" placeholder="Tell me what to change..." aria-label="Tell me what to change" autocomplete="off">
+      <button class="round" type="submit" aria-label="Send">↗</button>
+    </form>
   `;
 }
 
@@ -698,7 +630,7 @@ function renderTryon() {
       </div>
       <div class="price-stack">
         ${cats.slice(0,4).map(cat => {
-          const p = activeTrend.products[cat][0];
+          const p = activeTrend.products[cat][chosenProducts[cat]];
           return `<div class="price-chip">${img(p[3], "square", p[0])}<b>${p[2]}</b></div>`;
         }).join("")}
       </div>
@@ -710,7 +642,7 @@ function renderTryon() {
       </div>
       <div class="product-grid">
         ${products.map((p, idx) => `
-          <div class="product ${idx === activeProduct ? "active" : ""}" data-action="product" data-product="${idx}" role="button" tabindex="0">
+          <div class="product ${idx === activeProduct ? "active" : ""}" data-action="product" data-product="${idx}" role="button" tabindex="0" aria-pressed="${idx === activeProduct}">
             <div class="thumb">${img(p[3], "square", p[0])}</div>
             <div class="product-copy">
               <b>${p[0]}</b>
@@ -733,63 +665,105 @@ function renderTryon() {
   `;
 }
 
-function show(view) {
+function show(view, { back = false } = {}) {
+  const screen = document.querySelector(".screen");
+  if (view !== currentView) {
+    scrollPositions[currentView] = screen.scrollTop;
+    if (!back) navigation.push(currentView);
+  }
   document.querySelectorAll(".view").forEach(el => el.classList.remove("active"));
   $(view + "View").classList.add("active");
-  document.querySelector(".screen").scrollTop = 0;
+  currentView = view;
+  screen.scrollTop = back ? scrollPositions[view] : 0;
+}
+
+function goBack() {
+  show(navigation.pop() || "home", { back:true });
 }
 
 function setTrend(id) {
   activeTrend = trends.find(t => t.id === id) || activeTrend;
   activeCat = "Coat";
   activeProduct = 0;
+  Object.keys(chosenProducts).forEach(cat => chosenProducts[cat] = 0);
 }
 
-function renderAll() {
-  renderHome();
+function askStylist(query) {
+  chatQuery = query.trim() || activeTrend.ask;
+  const text = chatQuery.toLowerCase();
+  if (/soft|柔|周末|约会|cream/.test(text)) setTrend("soft");
+  else if (/suit|tailor|西装/.test(text)) setTrend("tailored");
+  else if (/leather|皮|酷|office/.test(text)) setTrend("night");
+  else if (/layer|denim|牛仔|通勤|daily|outfit/.test(text)) setTrend("city");
   renderChat();
+  show("chat");
+}
+
+function refreshProducts() {
+  const screen = document.querySelector(".screen");
+  const top = screen.scrollTop;
   renderTryon();
+  screen.scrollTop = top;
 }
 
 document.addEventListener("click", (e) => {
+  if (e.target.closest("a")) return;
   const target = e.target.closest("[data-action]");
   if (!target) return;
   const action = target.dataset.action;
-  if (target.dataset.trend) setTrend(target.dataset.trend);
-  if (action === "home") { renderAll(); show("home"); return; }
-  if (action === "chat") { renderAll(); show("chat"); return; }
-  if (action === "tryon") { renderAll(); show("tryon"); return; }
-  if (action === "cat") {
-    activeCat = target.dataset.cat;
-    activeProduct = 0;
+  if (action === "back") { goBack(); return; }
+  if (target.dataset.trend && currentView === "home") setTrend(target.dataset.trend);
+  if (action === "chat") {
+    if (target.dataset.trend) setTrend(target.dataset.trend);
+    chatQuery = target.dataset.query || activeTrend.ask;
+    renderChat();
+    show("chat");
+    return;
+  }
+  if (action === "tryon" || action === "shop-item") {
+    if (action === "shop-item") {
+      activeCat = target.dataset.cat;
+      activeProduct = Number(target.dataset.product || 0);
+      chosenProducts[activeCat] = activeProduct;
+    }
     renderTryon();
     show("tryon");
+    if (action === "shop-item") {
+      const screen = document.querySelector(".screen");
+      const refine = document.querySelector("#tryonView .refine");
+      screen.scrollTop = refine.getBoundingClientRect().top - screen.getBoundingClientRect().top - 48;
+    }
+    return;
+  }
+  if (action === "cat") {
+    activeCat = target.dataset.cat;
+    activeProduct = chosenProducts[activeCat];
+    refreshProducts();
     return;
   }
   if (action === "product") {
-    if (e.target.tagName === "A") return;
     activeProduct = Number(target.dataset.product) || 0;
-    renderTryon();
-    show("tryon");
+    chosenProducts[activeCat] = activeProduct;
+    refreshProducts();
     return;
   }
-  if (action === "smart-chat") {
-    const text = ($("chatInput")?.value || "").toLowerCase();
-    if (text.includes("soft") || text.includes("柔") || text.includes("约会")) setTrend("soft");
-    else if (text.includes("office") || text.includes("皮") || text.includes("酷")) setTrend("night");
-    else setTrend("city");
-    renderAll();
-    show("chat");
+});
+
+document.addEventListener("keydown", (e) => {
+  const product = e.target.closest('.product[role="button"]');
+  if (product && e.target === product && (e.key === "Enter" || e.key === " ")) {
+    e.preventDefault();
+    product.click();
   }
 });
 
 document.addEventListener("submit", (e) => {
+  if (e.target.id !== "homeAsk" && e.target.id !== "chatForm") return;
   e.preventDefault();
-  renderAll();
-  show("chat");
+  askStylist(e.target.querySelector("input").value);
 });
 
-renderAll();
+renderHome();
 </script>
 </body>
 </html>
