@@ -6,28 +6,27 @@
 <title>Fashion Lab · AI 导购助手 Demo</title>
 <style>
   :root {
-    --ink:#141414;
-    --muted:#747474;
-    --line:#e8e3db;
-    --paper:#fbfaf7;
+    --ink:#171717;
+    --muted:#767676;
+    --line:#e7e2da;
+    --paper:#faf8f4;
     --card:#ffffff;
-    --cream:#f3ead9;
-    --sand:#dfc8a2;
+    --soft:#f1eadf;
     --accent:#111111;
-    --pink:#ff3f7f;
-    --green:#3a7d58;
-    --shadow:0 14px 40px rgba(24,20,16,.12);
+    --hot:#ff3f7f;
+    --green:#377b56;
+    --blue:#eaf2ff;
+    --shadow:0 24px 70px rgba(24,20,16,.16);
     --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Inter","PingFang SC","Microsoft YaHei",sans-serif;
   }
   * { box-sizing:border-box; }
+  html, body { margin:0; min-height:100%; }
   body {
-    margin:0;
-    min-height:100vh;
     font-family:var(--font);
     color:var(--ink);
     background:
-      linear-gradient(90deg, rgba(232,227,219,.6) 1px, transparent 1px),
-      linear-gradient(180deg, rgba(232,227,219,.55) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(226,220,210,.72) 1px, transparent 1px),
+      linear-gradient(180deg, rgba(226,220,210,.62) 1px, transparent 1px),
       #f7f4ee;
     background-size:32px 32px;
   }
@@ -35,7 +34,7 @@
   button, input { font:inherit; }
   button { cursor:pointer; }
   .topbar {
-    height:54px;
+    height:56px;
     display:flex;
     align-items:center;
     gap:14px;
@@ -44,260 +43,296 @@
     border-bottom:1px solid var(--line);
     position:sticky;
     top:0;
-    z-index:20;
+    z-index:10;
     backdrop-filter:blur(14px);
   }
-  .brand { font-weight:850; letter-spacing:.1px; }
-  .brand b { font-weight:850; }
-  .topbar .back {
+  .back {
+    width:34px;
+    height:34px;
+    border-radius:50%;
+    border:1px solid var(--line);
+    background:#fff;
+    display:grid;
+    place-items:center;
+    font-size:22px;
+    font-weight:700;
+  }
+  .brand { font-weight:850; font-size:20px; letter-spacing:-.1px; }
+  .status {
+    margin-left:auto;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
     border:1px solid var(--line);
     background:#fff;
     border-radius:999px;
-    width:34px;
-    height:34px;
-    display:grid;
-    place-items:center;
+    padding:7px 12px;
+    color:#555;
+    font-size:13px;
+    font-weight:750;
   }
-  .status { margin-left:auto; display:flex; gap:8px; align-items:center; color:var(--muted); font-size:12px; }
-  .pill { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:999px; padding:5px 9px; background:#fff; color:#555; font-size:12px; font-weight:700; }
-  .dot { width:7px; height:7px; border-radius:50%; background:var(--green); }
-
-  .workspace {
-    max-width:1420px;
-    margin:0 auto;
-    padding:22px;
+  .status i { width:8px; height:8px; border-radius:50%; background:var(--green); display:block; }
+  .stage {
+    min-height:calc(100vh - 56px);
     display:grid;
-    grid-template-columns:300px minmax(430px,1fr) 330px;
-    gap:18px;
-    align-items:start;
+    place-items:start center;
+    padding:28px 18px 42px;
   }
-  .panel {
-    background:rgba(255,255,255,.92);
-    border:1px solid var(--line);
-    border-radius:8px;
+  .phone {
+    width:min(390px, 100%);
+    border:8px solid #111;
+    border-radius:30px;
+    background:#fbfaf8;
     box-shadow:var(--shadow);
     overflow:hidden;
   }
-  .panel-h {
-    padding:14px 16px;
-    border-bottom:1px solid var(--line);
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
+  .screen {
+    height:780px;
+    overflow:auto;
+    background:#fbfaf8;
+    scrollbar-width:none;
   }
-  .panel-h h2 { margin:0; font-size:15px; }
-  .sub { color:var(--muted); font-size:12px; line-height:1.45; }
-  .phone {
-    width:100%;
-    background:#f8f8f6;
-    border-radius:26px;
-    border:8px solid #151515;
-    overflow:hidden;
-    box-shadow:0 20px 50px rgba(0,0,0,.18);
-  }
-  .phone-screen { min-height:720px; background:#fbfaf8; }
+  .screen::-webkit-scrollbar { width:0; height:0; }
   .phone-head {
     height:42px;
     display:flex;
     align-items:center;
-    padding:0 14px;
     gap:10px;
+    padding:0 14px;
     font-size:11px;
-    font-weight:800;
+    font-weight:850;
+    background:rgba(251,250,248,.96);
+    position:sticky;
+    top:0;
+    z-index:5;
   }
   .phone-head .time { margin-right:auto; }
-  .hero-card {
+  .phone-head .title { position:absolute; left:0; right:0; text-align:center; pointer-events:none; }
+  .nav-btn {
+    width:26px;
+    height:26px;
+    border:0;
+    background:transparent;
+    border-radius:50%;
+    font-size:18px;
+    font-weight:850;
+    display:grid;
+    place-items:center;
+    z-index:1;
+  }
+  .icon-text { border:0; background:transparent; font-size:11px; font-weight:850; z-index:1; }
+  .hero {
     margin:0 12px 12px;
+    min-height:164px;
     border-radius:18px;
-    min-height:156px;
     overflow:hidden;
     position:relative;
     background:#ddd;
   }
-  .hero-card img, .look-hero img, .style-img img, .product-img img, .article-img img { width:100%; height:100%; object-fit:cover; display:block; }
-  .hero-card::after, .look-hero::after {
+  img { display:block; width:100%; height:100%; object-fit:cover; }
+  .hero::after, .tryon-hero::after {
     content:"";
     position:absolute;
     inset:0;
-    background:linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.48));
+    background:linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.52));
   }
   .hero-copy {
     position:absolute;
     left:14px;
     right:14px;
     bottom:14px;
-    color:#fff;
     z-index:1;
+    color:#fff;
   }
-  .hero-copy h1 { margin:0; font-size:22px; line-height:1.05; }
-  .hero-copy p { margin:5px 0 0; font-size:12px; opacity:.92; }
+  .hero-copy h1 { margin:0; font-size:24px; line-height:1.02; letter-spacing:-.3px; }
+  .hero-copy p { margin:6px 0 0; font-size:12px; opacity:.95; }
   .ask {
-    margin:0 12px 12px;
+    margin:0 12px 10px;
     display:flex;
     align-items:center;
     gap:8px;
-    background:#fff;
     border:1px solid var(--line);
     border-radius:999px;
-    padding:8px 10px 8px 13px;
+    background:#fff;
+    padding:8px 9px 8px 13px;
   }
   .ask input {
+    min-width:0;
+    flex:1;
     border:0;
     outline:0;
-    flex:1;
-    min-width:0;
-    color:#333;
     background:transparent;
+    color:#333;
     font-size:12px;
   }
-  .icon-btn {
-    border:0;
-    background:#111;
-    color:#fff;
+  .round {
     width:28px;
     height:28px;
+    border:0;
     border-radius:50%;
+    background:#111;
+    color:#fff;
+    font-weight:950;
     display:grid;
     place-items:center;
-    font-weight:900;
   }
   .quick-row {
-    margin:0 12px 16px;
     display:grid;
     grid-template-columns:1fr 1fr;
     gap:8px;
+    margin:0 12px 16px;
   }
   .quick {
-    border:1px solid var(--line);
-    background:#fff;
-    border-radius:10px;
-    padding:9px 8px;
-    text-align:left;
-    font-size:11px;
-    font-weight:800;
     min-height:48px;
-  }
-  .section-title { margin:16px 14px 10px; font-size:13px; font-weight:850; }
-  .style-list { display:grid; gap:10px; padding:0 12px 16px; }
-  .style-card {
-    display:grid;
-    grid-template-columns:1fr 92px;
-    gap:10px;
-    min-height:130px;
-    border:1px solid var(--line);
-    border-radius:14px;
-    padding:10px;
-    background:#fff;
-    text-align:left;
-  }
-  .style-card.active { border-color:#111; box-shadow:0 0 0 2px #111 inset; }
-  .style-card h3 { margin:0 0 6px; font-size:13px; line-height:1.25; }
-  .style-card p { margin:0; color:var(--muted); font-size:11px; line-height:1.35; }
-  .style-img { border-radius:10px; overflow:hidden; background:#eee; }
-  .try { margin-top:10px; display:inline-flex; border:0; border-radius:999px; padding:6px 10px; background:#111; color:#fff; font-size:11px; font-weight:800; }
-  .feed-grid { padding:0 12px 18px; display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .feed {
     border:1px solid var(--line);
     border-radius:12px;
     background:#fff;
-    overflow:hidden;
+    padding:9px 10px;
     text-align:left;
+    font-size:11px;
+    font-weight:850;
   }
-  .feed .style-img { border-radius:0; aspect-ratio:1/1; }
-  .feed p { margin:8px; font-size:11px; font-weight:750; line-height:1.25; }
-  .feed span { display:block; color:var(--muted); font-weight:600; margin-top:3px; }
-
-  .assistant {
-    min-height:720px;
-    display:grid;
-    grid-template-rows:auto auto 1fr auto;
-  }
-  .trend-tabs, .item-tabs {
-    display:flex;
-    gap:8px;
-    overflow:auto;
-    padding:12px 16px;
-    border-bottom:1px solid var(--line);
-  }
-  .tab {
-    border:1px solid var(--line);
-    background:#fff;
-    border-radius:999px;
-    padding:7px 12px;
-    white-space:nowrap;
-    font-size:12px;
-    font-weight:800;
-    color:#555;
-  }
-  .tab.active { background:#111; color:#fff; border-color:#111; }
-  .chat {
-    padding:18px 18px 22px;
-    display:grid;
-    gap:14px;
-    align-content:start;
-    background:linear-gradient(180deg, #fff, #fbfaf8);
-  }
-  .bubble {
-    max-width:88%;
-    border-radius:16px;
-    padding:12px 13px;
-    line-height:1.55;
+  .quick span { display:block; color:var(--muted); font-weight:700; margin-top:1px; }
+  .section-title {
+    margin:18px 14px 10px;
     font-size:13px;
+    font-weight:900;
   }
-  .bubble.user { justify-self:end; background:#e8f2ec; }
-  .bubble.ai { justify-self:start; background:#fff; border:1px solid var(--line); }
-  .answer-card {
-    border:1px solid var(--line);
-    border-radius:8px;
-    overflow:hidden;
-    background:#fff;
-  }
-  .answer-body { padding:14px; }
-  .answer-body h3 { margin:0 0 8px; font-size:18px; }
-  .answer-body p { margin:0 0 10px; color:#444; line-height:1.65; }
-  .look-board {
+  .style-stack { display:grid; gap:10px; padding:0 12px; }
+  .style-card {
     display:grid;
-    grid-template-columns:1fr 1fr 1fr;
-    gap:8px;
-    padding:0 14px 14px;
-  }
-  .mini-look {
+    grid-template-columns:1fr 100px;
+    gap:10px;
+    min-height:136px;
     border:1px solid var(--line);
-    border-radius:8px;
+    border-radius:15px;
+    background:#fff;
+    padding:10px;
+    text-align:left;
+  }
+  .style-card.active { border-color:#111; box-shadow:0 0 0 2px #111 inset; }
+  .style-card h3 { margin:0 0 7px; font-size:13px; line-height:1.22; }
+  .style-card p { margin:0; color:var(--muted); font-size:11px; line-height:1.35; }
+  .thumb { border-radius:11px; overflow:hidden; background:#e8e4dc; }
+  .try {
+    margin-top:10px;
+    display:inline-flex;
+    border:0;
+    border-radius:999px;
+    padding:6px 10px;
+    background:#111;
+    color:#fff;
+    font-size:11px;
+    font-weight:850;
+  }
+  .look-row {
+    display:grid;
+    grid-template-columns:1.05fr .95fr;
+    gap:8px;
+    padding:0 12px;
+  }
+  .look-card, .feed-card {
+    border:1px solid var(--line);
+    border-radius:13px;
     overflow:hidden;
     background:#fff;
     text-align:left;
   }
-  .mini-look.active { border-color:#111; box-shadow:0 0 0 2px #111 inset; }
-  .mini-look .style-img { border-radius:0; aspect-ratio:4/5; }
-  .mini-look b { display:block; padding:8px 8px 2px; font-size:12px; }
-  .mini-look span { display:block; padding:0 8px 8px; color:var(--muted); font-size:11px; }
-  .chat-compose {
-    padding:12px 16px;
-    border-top:1px solid var(--line);
+  .look-card .thumb { border-radius:0; aspect-ratio:3/4; }
+  .look-card p, .feed-card p { margin:8px; font-size:11px; font-weight:800; line-height:1.25; }
+  .look-card span, .feed-card span { display:block; color:var(--muted); font-weight:650; margin-top:3px; }
+  .feed-grid {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    padding:0 12px 18px;
+  }
+  .feed-card .thumb { border-radius:0; aspect-ratio:1/1; }
+  .view { display:none; min-height:100%; }
+  .view.active { display:block; }
+
+  .chat-body { padding:12px 13px 18px; }
+  .bubble {
+    max-width:86%;
+    border-radius:16px;
+    padding:11px 12px;
+    font-size:12px;
+    line-height:1.55;
+    margin:8px 0;
+  }
+  .bubble.user { margin-left:auto; background:#e8f2ec; }
+  .bubble.ai { background:#fff; border:1px solid var(--line); }
+  .answer {
+    margin-top:10px;
+    border:1px solid var(--line);
+    border-radius:16px;
+    background:#fff;
+    overflow:hidden;
+  }
+  .answer-copy { padding:13px; }
+  .answer-copy h2 { margin:0 0 8px; font-size:17px; line-height:1.15; }
+  .answer-copy p { margin:0 0 10px; color:#444; font-size:12px; line-height:1.62; }
+  .tag {
+    display:inline-flex;
+    border-radius:999px;
+    background:#f2f0eb;
+    padding:4px 8px;
+    font-size:10px;
+    font-weight:850;
+    color:#555;
+    margin:0 4px 4px 0;
+  }
+  .chat-look {
+    margin:0 13px 13px;
+    border:1px solid var(--line);
+    border-radius:13px;
+    overflow:hidden;
+    background:#fbfaf8;
+    text-align:left;
+  }
+  .chat-look .thumb { border-radius:0; aspect-ratio:4/3; }
+  .chat-look div:last-child { padding:10px; }
+  .chat-look b { display:block; font-size:12px; margin-bottom:5px; }
+  .chat-look span { display:block; color:var(--muted); font-size:11px; line-height:1.35; }
+  .option-list { display:grid; gap:7px; margin-top:10px; }
+  .option-list button {
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:#fbfaf8;
+    text-align:left;
+    padding:9px 10px;
+    font-size:11px;
+    font-weight:800;
+  }
+  .composer {
+    position:sticky;
+    bottom:0;
     display:flex;
     gap:8px;
-    background:#fff;
+    padding:10px 12px 12px;
+    border-top:1px solid var(--line);
+    background:rgba(251,250,248,.94);
+    backdrop-filter:blur(12px);
   }
-  .chat-compose input {
+  .composer input {
     flex:1;
     min-width:0;
     border:1px solid var(--line);
     border-radius:999px;
-    padding:10px 13px;
+    padding:10px 12px;
     outline:0;
+    font-size:12px;
   }
 
-  .tryon { display:grid; gap:12px; padding:12px; }
-  .look-hero {
-    aspect-ratio:9/14;
+  .tryon-hero {
+    margin:0 12px 10px;
+    aspect-ratio:9/13.5;
     border-radius:18px;
     overflow:hidden;
     position:relative;
     background:#ddd;
   }
-  .look-overlay {
+  .tryon-meta {
     position:absolute;
     inset:0;
     z-index:1;
@@ -307,179 +342,133 @@
     padding:12px;
     color:#fff;
   }
-  .look-top { display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:850; }
+  .tryon-top { display:flex; justify-content:space-between; font-size:11px; font-weight:850; }
+  .buy {
+    align-self:flex-end;
+    border:0;
+    border-radius:999px;
+    background:var(--hot);
+    color:#fff;
+    padding:9px 14px;
+    font-size:12px;
+    font-weight:900;
+  }
   .price-stack {
     position:absolute;
-    top:48px;
+    top:52px;
     right:10px;
+    z-index:2;
     display:grid;
     gap:7px;
-    z-index:2;
   }
   .price-chip {
     width:52px;
+    border:1px solid rgba(255,255,255,.74);
     border-radius:10px;
-    background:rgba(255,255,255,.92);
+    background:rgba(255,255,255,.94);
     color:#111;
     overflow:hidden;
-    border:1px solid rgba(255,255,255,.7);
-    box-shadow:0 4px 16px rgba(0,0,0,.18);
+    box-shadow:0 5px 16px rgba(0,0,0,.18);
   }
-  .price-chip img { width:100%; aspect-ratio:1/1; object-fit:cover; display:block; }
-  .price-chip b { display:block; padding:3px 4px; text-align:center; font-size:10px; }
-  .buy {
-    border:0;
-    background:var(--pink);
-    color:#fff;
-    border-radius:999px;
-    padding:9px 14px;
-    font-weight:900;
-    align-self:flex-end;
-  }
+  .price-chip img { aspect-ratio:1/1; }
+  .price-chip b { display:block; padding:3px 4px; font-size:10px; text-align:center; }
   .refine {
+    margin:0 12px 14px;
     border:1px solid var(--line);
-    border-radius:8px;
+    border-radius:15px;
     background:#fff;
     overflow:hidden;
   }
-  .refine-h { padding:10px 12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); }
+  .refine-h {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:10px 12px;
+    border-bottom:1px solid var(--line);
+    font-size:12px;
+  }
+  .tabs {
+    display:flex;
+    gap:7px;
+    padding:10px 12px;
+    overflow:auto;
+  }
+  .tab {
+    border:1px solid var(--line);
+    border-radius:999px;
+    background:#fff;
+    color:#555;
+    padding:6px 10px;
+    font-size:11px;
+    font-weight:850;
+    white-space:nowrap;
+  }
+  .tab.active { background:#111; color:#fff; border-color:#111; }
   .product-grid {
     display:grid;
     grid-template-columns:1fr 1fr;
-    gap:10px;
-    padding:12px;
+    gap:9px;
+    padding:0 12px 12px;
   }
   .product {
     border:1px solid var(--line);
-    border-radius:8px;
+    border-radius:11px;
     overflow:hidden;
     background:#fff;
     text-align:left;
-    cursor:pointer;
   }
-  .product.active { border-color:#111; }
-  .product-img { aspect-ratio:1/1.15; background:#eee; }
+  .product.active { border-color:#111; box-shadow:0 0 0 2px #111 inset; }
+  .product .thumb { border-radius:0; aspect-ratio:1/1.12; }
   .product-copy { padding:8px; }
-  .product-copy b { display:block; font-size:11px; line-height:1.25; min-height:29px; }
-  .product-copy span { display:block; color:#888; font-size:10px; margin-top:4px; }
+  .product-copy b { display:block; font-size:11px; line-height:1.22; min-height:28px; }
+  .product-copy span { display:block; margin-top:4px; color:#888; font-size:10px; }
   .product-copy strong { display:block; margin-top:5px; font-size:12px; }
   .product-copy a {
     display:inline-flex;
     margin-top:7px;
     border-radius:999px;
-    padding:5px 8px;
     background:#111;
     color:#fff;
+    padding:5px 8px;
     font-size:10px;
     font-weight:850;
   }
-  .explain {
+  .story {
+    margin:0 12px 18px;
     border:1px solid var(--line);
-    border-radius:8px;
+    border-radius:15px;
     background:#fff;
     overflow:hidden;
   }
-  .article-img { height:150px; background:#eee; }
-  .explain article { padding:12px; }
-  .explain h3 { margin:0 0 8px; font-size:15px; }
-  .explain p { margin:0 0 10px; color:#444; line-height:1.55; font-size:12px; }
-  .reason-list { margin:0; padding-left:17px; color:#555; font-size:12px; line-height:1.6; }
+  .story .thumb { height:136px; border-radius:0; }
+  .story article { padding:12px; }
+  .story h2 { margin:0 0 7px; font-size:15px; }
+  .story p { margin:0 0 8px; color:#444; font-size:12px; line-height:1.56; }
+  .story ol { margin:0; padding-left:18px; color:#555; font-size:12px; line-height:1.58; }
 
-  @media (max-width:1180px) {
-    .workspace { grid-template-columns:280px 1fr; }
-    .right-col { grid-column:1 / -1; display:grid; grid-template-columns:330px 1fr; gap:18px; }
-    .look-hero { aspect-ratio:9/12; }
-  }
-  @media (max-width:820px) {
+  @media (max-width:560px) {
     .topbar { padding:0 12px; }
+    .brand { font-size:18px; }
     .status { display:none; }
-    .workspace { grid-template-columns:1fr; padding:12px; }
-    .phone { max-width:360px; margin:0 auto; }
-    .right-col { grid-column:auto; display:block; }
-    .look-board { grid-template-columns:1fr; }
-    .panel { border-radius:8px; }
+    .stage { padding:12px 10px 24px; place-items:start center; }
+    .phone { border-width:6px; border-radius:26px; }
+    .screen { height:calc(100vh - 92px); min-height:680px; }
   }
 </style>
 </head>
 <body>
-<div class="topbar">
+<header class="topbar">
   <a class="back" href="../index.html" aria-label="返回 Demo 入口">‹</a>
-  <div class="brand">Fashion <b>Lab</b></div>
-  <span class="pill"><i class="dot"></i> Trend-aware styling demo</span>
-  <div class="status">
-    <span>2026 spring signals</span>
-    <span class="pill">Ask AI</span>
-  </div>
-</div>
+  <div class="brand">Fashion Lab</div>
+  <div class="status"><i></i><span>AI stylist is ready</span></div>
+</header>
 
-<main class="workspace">
-  <section class="phone" aria-label="Fashion Lab mobile home">
-    <div class="phone-screen">
-      <div class="phone-head"><span class="time">8:00</span><span>Fashion Lab</span><span>⌕</span><span>☰</span></div>
-      <div class="hero-card">
-        <img id="homeHero" alt="Daily fashion look" />
-        <div class="hero-copy">
-          <h1>Hi Jenny,<br>OOTD</h1>
-          <p>Get your daily look from trend signals and shoppable pieces.</p>
-        </div>
-      </div>
-      <form class="ask" id="homeAsk">
-        <input id="homeAskInput" value="Ask your AI stylist anything" aria-label="Ask stylist" />
-        <button class="icon-btn" type="submit" aria-label="Ask">↗</button>
-      </form>
-      <div class="quick-row">
-        <button class="quick" data-query="Style an item">Style an item<br><span class="sub">Build full outfits</span></button>
-        <button class="quick" data-query="What suits me">What suits me<br><span class="sub">Saved fit stats</span></button>
-      </div>
-      <div class="section-title">You may wanna try-on</div>
-      <div class="style-list" id="styleList"></div>
-      <div class="section-title">Explore more style</div>
-      <div class="feed-grid" id="feedGrid"></div>
-    </div>
-  </section>
-
-  <section class="panel assistant" aria-label="AI stylist workspace">
-    <div class="panel-h">
-      <div>
-        <h2>Ask your AI stylist anything</h2>
-        <div class="sub">Jenny · Beijing · Cloudy 18-25C · Updated today</div>
-      </div>
-      <span class="pill">Ask AI</span>
-    </div>
-    <div class="trend-tabs" id="trendTabs"></div>
-    <div class="chat" id="chat"></div>
-    <div class="chat-compose">
-      <input id="chatInput" value="通勤但不无聊，适合降温天气" aria-label="Styling request" />
-      <button class="icon-btn" id="sendBtn" aria-label="Generate">↗</button>
-    </div>
-  </section>
-
-  <section class="right-col">
-    <div class="panel tryon" aria-label="Look try-on and products">
-      <div class="look-hero">
-        <img id="lookHero" alt="Selected outfit look" />
-        <div class="look-overlay">
-          <div class="look-top"><span>‹ Fashion Lab</span><span>✦ Ask AI</span></div>
-          <button class="buy" type="button">Buy all</button>
-        </div>
-        <div class="price-stack" id="priceStack"></div>
-      </div>
-      <div class="refine">
-        <div class="refine-h">
-          <b>Refine this look</b>
-          <span class="sub">More look</span>
-        </div>
-        <div class="item-tabs" id="itemTabs"></div>
-        <div class="product-grid" id="productGrid"></div>
-      </div>
-      <div class="explain">
-        <div class="article-img"><img id="articleImg" alt="Outfit explanation" /></div>
-        <article>
-          <h3 id="articleTitle"></h3>
-          <p id="articleText"></p>
-          <ol class="reason-list" id="reasonList"></ol>
-        </article>
-      </div>
+<main class="stage">
+  <section class="phone" aria-label="Fashion Lab shopping assistant">
+    <div class="screen">
+      <div class="view active" id="homeView"></div>
+      <div class="view" id="chatView"></div>
+      <div class="view" id="tryonView"></div>
     </div>
   </section>
 </main>
@@ -494,16 +483,18 @@ const trends = [
     id:"city",
     tab:"City Utility",
     title:"Easy City Casual Look",
+    mood:"Cloudy morning, clean layers, light denim",
     ask:"Inspirations for today's outfit",
-    mood:"通勤轻户外、低饱和中性色、清爽层次",
-    intro:"Cloudy in Beijing today, with cool mornings and warmer midday. A crisp white tee, relaxed overshirt and light-wash straight jeans keep things fresh and easy, while white sneakers anchor the look.",
-    image:"realistic street style editorial photo, young woman in beige trench coat, white tank top, light wash straight leg jeans, white sneakers, city street in spring, natural daylight, full body, fashion ecommerce lookbook",
-    article:"这套 look 抓住了近期 city utility 的核心：实穿廓形、干净浅色、可叠穿外套。它适合早晚温差明显的通勤日，也能从办公室自然切到晚间约会。",
-    reasons:["风衣提供结构感，解决基础白 T 过于单薄的问题。","直筒牛仔裤拉长比例，弱化通勤造型的正式感。","白色球鞋让整体更轻，不会被长外套压低重心。"],
+    answer:"Cloudy in Beijing today, with cool mornings and a warmer midday. A crisp white tee, relaxed overshirt and light-wash straight jeans keep things fresh and easy, while white sneakers make the look clean enough for work and casual enough for coffee hours.",
+    hero:"realistic street style editorial photo, young woman wearing beige trench coat, black tank top, light wash straight leg jeans, white sneakers, new york city street, full body fashion ecommerce lookbook, natural daylight",
+    card:"realistic fashion app card, young woman in beige trench coat and blue jeans, full body, clean street style, ecommerce lookbook",
+    flatlay:"realistic flat lay outfit, beige trench coat, white tee, light blue straight jeans, white sneakers, small leather bag, clean ecommerce editorial",
+    article:"这套 look 抓住近期 city utility 的核心：实穿廓形、干净浅色、可叠穿外套。它适合早晚温差明显的通勤日，也能自然切换到下班后的轻社交场景。",
+    reasons:["长外套建立利落轮廓，解决基础内搭过于单薄的问题。","直筒牛仔裤拉长比例，让通勤造型更轻松。","白色球鞋降低正式感，整体更适合日常高频穿着。"],
     products:{
       Coat:[
-        ["Estée Lauder Double Weave Trench","No. 3N1 Ivory Beige","$32.20","tailored beige double breasted trench coat product photo on clean background, fashion ecommerce, realistic"],
-        ["Urban Rain Short Mac","Warm stone","$28.50","short beige rain mac jacket product photo, clean ecommerce background, realistic fabric texture"]
+        ["Double Weave Trench","No. 3N1 Ivory Beige","$32.20","tailored beige double breasted trench coat product photo on clean white background, realistic ecommerce"],
+        ["Short Utility Mac","Warm stone","$28.50","short beige utility mac jacket product photo on clean white background, realistic ecommerce"]
       ],
       Top:[
         ["Ribbed Scoop Tank","Soft black","$16.00","black ribbed scoop neck tank top product photo on white background, realistic ecommerce"],
@@ -511,7 +502,7 @@ const trends = [
       ],
       Pants:[
         ["High-rise Straight Jeans","Light vintage blue","$35.90","light wash high rise straight leg jeans product photo on white background, realistic ecommerce"],
-        ["Relaxed Tailored Trouser","Warm grey","$31.60","warm grey relaxed tailored trousers product photo, white background, realistic ecommerce"]
+        ["Relaxed Tailored Trouser","Warm grey","$31.60","warm grey relaxed tailored trousers product photo on white background, realistic ecommerce"]
       ],
       Shoes:[
         ["Minimal Court Sneaker","White leather","$29.00","minimal white leather sneaker product photo on white background, realistic ecommerce"],
@@ -522,12 +513,14 @@ const trends = [
   {
     id:"soft",
     tab:"Soft Minimal",
-    title:"Soft Neutral Weekend Look",
+    title:"Intellectual Design-led Style",
+    mood:"Cream knit, fluid skirt, soft weekend texture",
     ask:"Make it softer",
-    mood:"奶油色、轻针织、松弛周末感",
-    intro:"For a slower weekend, pair a creamy knit vest with a fluid skirt and suede flats. The silhouette stays polished, but the texture makes it softer and warmer.",
-    image:"realistic fashion lookbook photo, young woman wearing cream knit vest, white midi skirt, suede ballet flats, minimal cafe street, soft spring daylight, full body",
-    article:"近期 soft minimal 不再是纯白极简，而是用针织、麂皮、奶油色制造更柔和的质感。它适合周末、咖啡约会和轻度出游。",
+    answer:"For a slower weekend, pair a creamy knit vest with a fluid skirt and suede flats. The silhouette stays polished, but the texture makes it warmer and less formal.",
+    hero:"realistic fashion lookbook photo, young woman wearing cream knit vest, white midi skirt, suede ballet flats, minimal cafe street, soft spring daylight, full body",
+    card:"realistic fashion ecommerce card, woman in cream knit vest and white midi skirt, warm minimal street style, full body",
+    flatlay:"realistic flat lay outfit, cream knit vest, white midi skirt, suede ballet flats, small woven bag, soft daylight, ecommerce editorial",
+    article:"Soft minimal 的重点不是全白，而是通过针织、麂皮和奶油色制造柔和质感。它适合周末、咖啡约会和轻度出游。",
     reasons:["针织背心替代普通衬衫，直接提升触感与层次。","白色半裙保留清爽感，同时比长裤更有季节变化。","麂皮鞋让颜色过渡更自然，避免全身过白。"],
     products:{
       Coat:[
@@ -552,11 +545,13 @@ const trends = [
     id:"night",
     tab:"After-dark Denim",
     title:"Calm High-end Career Style",
+    mood:"Leather jacket, dark denim, polished hardware",
     ask:"Make it office-friendly",
-    mood:"深色皮革、短夹克、金属配饰",
-    intro:"A cropped leather jacket and clean denim create a sharper after-work outfit. Keep the inner layer simple and let hardware details add the current polished edge.",
-    image:"realistic editorial street style photo, young woman in black cropped leather jacket, white fitted top, dark straight jeans, silver belt, downtown evening, full body fashion lookbook",
-    article:"今年的 denim look 更强调利落剪裁和配饰细节。短皮衣负责态度，直筒牛仔负责日常可穿性，适合从会议后直接进入晚间场景。",
+    answer:"A cropped leather jacket and clean denim create a sharper after-work outfit. Keep the inner layer simple and let hardware details add the current polished edge.",
+    hero:"realistic editorial street style photo, young woman in black cropped leather jacket, white fitted top, dark straight jeans, silver belt, downtown evening, full body fashion lookbook",
+    card:"realistic fashion ecommerce card, young woman wearing black cropped leather jacket and dark jeans, calm high end career style, full body",
+    flatlay:"realistic flat lay outfit, black leather jacket, white fitted top, dark straight jeans, silver belt, black ankle boots, ecommerce editorial",
+    article:"Denim look 近期更强调利落剪裁和配饰细节。短皮衣负责态度，直筒牛仔负责日常可穿性，适合从会议后直接进入晚间场景。",
     reasons:["短夹克抬高腰线，让厚重皮革不显压身。","白色内搭给黑色皮衣留出呼吸感。","银色腰带与小包形成视觉锚点，增加造型完成度。"],
     products:{
       Coat:[
@@ -579,134 +574,219 @@ const trends = [
   }
 ];
 
-let trend = trends[0];
-let category = "Coat";
+let activeTrend = trends[0];
+let activeCat = "Coat";
 let activeProduct = 0;
 
-function $(id){ return document.getElementById(id); }
+const $ = (id) => document.getElementById(id);
 
-function renderHome(){
-  $("homeHero").src = imageUrl("realistic mobile fashion app hero image, stylish young woman wearing black sunglasses and leather jacket, clean editorial fashion, soft daylight, ecommerce app", "portrait_4_3");
-  const list = $("styleList");
-  list.innerHTML = trends.map(t => `
-    <button class="style-card ${t.id === trend.id ? "active" : ""}" data-trend="${t.id}">
-      <div>
-        <h3>${t.title}</h3>
-        <p>${t.mood}</p>
-        <span class="try">Try-on look</span>
-      </div>
-      <div class="style-img"><img alt="${t.title}" src="${imageUrl(t.image, "portrait_4_3")}"></div>
-    </button>
-  `).join("");
-  list.querySelectorAll("[data-trend]").forEach(btn => btn.onclick = () => setTrend(btn.dataset.trend));
-
-  $("feedGrid").innerHTML = trends.concat(trends.slice(0,1)).map((t, i) => `
-    <button class="feed" data-trend="${t.id}">
-      <div class="style-img"><img alt="${t.tab}" src="${imageUrl(i % 2 ? t.products.Coat[0][3] : t.image, "square")}"></div>
-      <p>${t.tab}<span>Try on style</span></p>
-    </button>
-  `).join("");
-  $("feedGrid").querySelectorAll("[data-trend]").forEach(btn => btn.onclick = () => setTrend(btn.dataset.trend));
+function phoneHead({ back = false, right = "Ask AI" } = {}) {
+  return `
+    <div class="phone-head">
+      <span class="time">8:00</span>
+      ${back ? `<button class="nav-btn" data-action="home" aria-label="Back">‹</button>` : ""}
+      <span class="title">Fashion Lab</span>
+      <button class="icon-text" data-action="chat">${right}</button>
+    </div>
+  `;
 }
 
-function renderTabs(){
-  $("trendTabs").innerHTML = trends.map(t => `<button class="tab ${t.id === trend.id ? "active" : ""}" data-trend="${t.id}">${t.tab}</button>`).join("");
-  $("trendTabs").querySelectorAll("[data-trend]").forEach(btn => btn.onclick = () => setTrend(btn.dataset.trend));
-  const cats = Object.keys(trend.products);
-  $("itemTabs").innerHTML = cats.map(c => `<button class="tab ${c === category ? "active" : ""}" data-cat="${c}">${c}</button>`).join("");
-  $("itemTabs").querySelectorAll("[data-cat]").forEach(btn => {
-    btn.onclick = () => { category = btn.dataset.cat; activeProduct = 0; renderProducts(); renderTabs(); };
-  });
+function img(prompt, size, alt) {
+  return `<img src="${imageUrl(prompt, size)}" alt="${alt}">`;
 }
 
-function renderChat(){
-  $("chat").innerHTML = `
-    <div class="bubble user">${trend.ask}</div>
-    <div class="bubble ai">正在结合近期趋势信号、天气场景和你的日常偏好，生成可直接购买的搭配方案。</div>
-    <div class="answer-card">
-      <div class="answer-body">
-        <h3>${trend.title}</h3>
-        <p>${trend.intro}</p>
-        <span class="pill">Trend: ${trend.tab}</span>
-        <span class="pill">Scene: daily styling</span>
+function renderHome() {
+  $("homeView").innerHTML = `
+    ${phoneHead({ right:"Ask AI" })}
+    <div class="hero">
+      ${img("realistic mobile fashion app hero image, stylish young woman wearing black sunglasses and black leather jacket, clean editorial fashion, soft daylight, ecommerce app", "portrait_4_3", "Fashion daily look")}
+      <div class="hero-copy">
+        <h1>Hi Jenny,<br>OOTD</h1>
+        <p>Get your daily look</p>
       </div>
-      <div class="look-board">
-        ${trends.map(t => `
-          <button class="mini-look ${t.id === trend.id ? "active" : ""}" data-trend="${t.id}">
-            <div class="style-img"><img alt="${t.title}" src="${imageUrl(t.image, "portrait_4_3")}"></div>
-            <b>${t.title}</b>
-            <span>${t.mood}</span>
-          </button>
+    </div>
+    <form class="ask" data-action="chat">
+      <input value="Ask your AI stylist anything" aria-label="Ask your AI stylist anything">
+      <button class="round" type="submit" aria-label="Ask">↗</button>
+    </form>
+    <div class="quick-row">
+      <button class="quick" data-action="chat" data-query="Style an item">Style an item<span>Build full outfits</span></button>
+      <button class="quick" data-action="chat" data-query="What suits me">What suits me<span>Saved fit stats</span></button>
+    </div>
+    <div class="section-title">You may wanna try-on</div>
+    <div class="style-stack">
+      ${trends.map(t => `
+        <button class="style-card ${t.id === activeTrend.id ? "active" : ""}" data-action="tryon" data-trend="${t.id}">
+          <div>
+            <h3>${t.title}</h3>
+            <p>${t.mood}</p>
+            <span class="try">Try-on look</span>
+          </div>
+          <div class="thumb">${img(t.card, "portrait_4_3", t.title)}</div>
+        </button>
+      `).join("")}
+    </div>
+    <div class="section-title">Intellectual Design-led Style</div>
+    <div class="look-row">
+      <button class="look-card" data-action="tryon" data-trend="soft">
+        <div class="thumb">${img(trends[1].hero, "portrait_4_3", trends[1].title)}</div>
+        <p>Cool Aesthetic<span>Avant-garde woman</span></p>
+      </button>
+      <button class="look-card" data-action="chat" data-trend="soft">
+        <div class="thumb">${img(trends[1].flatlay, "portrait_4_3", "Soft minimal outfit")}</div>
+        <p>Cool AI<span>Style this item</span></p>
+      </button>
+    </div>
+    <div class="section-title">Explore more style</div>
+    <div class="feed-grid">
+      ${trends.concat(trends).slice(0,6).map((t, idx) => `
+        <button class="feed-card" data-action="${idx % 2 ? "tryon" : "chat"}" data-trend="${t.id}">
+          <div class="thumb">${img(idx % 2 ? t.products.Coat[0][3] : t.card, "square", t.tab)}</div>
+          <p>${t.tab}<span>${idx % 2 ? t.products.Coat[0][2] : "Try-on style"}</span></p>
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderChat() {
+  $("chatView").innerHTML = `
+    ${phoneHead({ back:true, right:"Close" })}
+    <div class="chat-body">
+      <div class="bubble user">${activeTrend.ask}</div>
+      <div class="bubble ai">Based on your local weather, saved fit stats, and current trend signals, here is the best direction.</div>
+      <div class="answer">
+        <div class="answer-copy">
+          <h2>${activeTrend.title}</h2>
+          <p>${activeTrend.answer}</p>
+          <span class="tag">${activeTrend.tab}</span>
+          <span class="tag">Daily styling</span>
+          <span class="tag">Shoppable look</span>
+          <div class="option-list">
+            <button data-action="chat" data-trend="soft">Make it softer</button>
+            <button data-action="chat" data-trend="city">Add more layers</button>
+            <button data-action="chat" data-trend="night">Make it office-friendly</button>
+          </div>
+        </div>
+        <button class="chat-look" data-action="tryon" data-trend="${activeTrend.id}">
+          <div class="thumb">${img(activeTrend.flatlay, "landscape_4_3", activeTrend.title)}</div>
+          <div>
+            <b>Try it on</b>
+            <span>Open this look and rebuild it with exact products.</span>
+          </div>
+        </button>
+      </div>
+    </div>
+    <div class="composer">
+      <input id="chatInput" value="Tell me what to change..." aria-label="Tell me what to change">
+      <button class="round" data-action="smart-chat" aria-label="Send">↗</button>
+    </div>
+  `;
+}
+
+function renderTryon() {
+  const cats = Object.keys(activeTrend.products);
+  const products = activeTrend.products[activeCat] || activeTrend.products.Coat;
+  const selected = products[activeProduct] || products[0];
+  $("tryonView").innerHTML = `
+    ${phoneHead({ back:true, right:"Ask AI" })}
+    <div class="tryon-hero">
+      ${img(activeTrend.hero, "portrait_4_3", activeTrend.title)}
+      <div class="tryon-meta">
+        <div class="tryon-top"><span>Fashion Lab</span><span>Ask AI</span></div>
+        <button class="buy" type="button">Buy all</button>
+      </div>
+      <div class="price-stack">
+        ${cats.slice(0,4).map(cat => {
+          const p = activeTrend.products[cat][0];
+          return `<div class="price-chip">${img(p[3], "square", p[0])}<b>${p[2]}</b></div>`;
+        }).join("")}
+      </div>
+    </div>
+    <div class="refine">
+      <div class="refine-h"><b>Refine this look</b><span>More look</span></div>
+      <div class="tabs">
+        ${cats.map(cat => `<button class="tab ${cat === activeCat ? "active" : ""}" data-action="cat" data-cat="${cat}">${cat}</button>`).join("")}
+      </div>
+      <div class="product-grid">
+        ${products.map((p, idx) => `
+          <div class="product ${idx === activeProduct ? "active" : ""}" data-action="product" data-product="${idx}" role="button" tabindex="0">
+            <div class="thumb">${img(p[3], "square", p[0])}</div>
+            <div class="product-copy">
+              <b>${p[0]}</b>
+              <span>${p[1]}</span>
+              <strong>${p[2]}</strong>
+              <a href="https://www.tiktok.com/shop" target="_blank" rel="noreferrer">View item</a>
+            </div>
+          </div>
         `).join("")}
       </div>
     </div>
-  `;
-  $("chat").querySelectorAll("[data-trend]").forEach(btn => btn.onclick = () => setTrend(btn.dataset.trend));
-}
-
-function renderProducts(){
-  const products = trend.products[category];
-  $("lookHero").src = imageUrl(trend.image, "portrait_4_3");
-  $("priceStack").innerHTML = Object.keys(trend.products).slice(0,4).map(cat => {
-    const p = trend.products[cat][0];
-    return `<div class="price-chip"><img alt="${p[0]}" src="${imageUrl(p[3], "square")}"><b>${p[2]}</b></div>`;
-  }).join("");
-  $("productGrid").innerHTML = products.map((p, idx) => `
-    <div class="product ${idx === activeProduct ? "active" : ""}" data-product="${idx}" role="button" tabindex="0">
-      <div class="product-img"><img alt="${p[0]}" src="${imageUrl(p[3], "square")}"></div>
-      <div class="product-copy">
-        <b>${p[0]}</b>
-        <span>${p[1]}</span>
-        <strong>${p[2]}</strong>
-        <a href="https://www.tiktok.com/shop" target="_blank" rel="noreferrer">View item</a>
-      </div>
+    <div class="story">
+      <div class="thumb">${img("realistic outfit editorial detail shot featuring " + selected[3] + ", styled with matching clothes, clean ecommerce magazine layout", "landscape_4_3", selected[0])}</div>
+      <article>
+        <h2>${selected[0]} 搭配讲解</h2>
+        <p>${activeTrend.article}</p>
+        <ol>${activeTrend.reasons.map(r => `<li>${r}</li>`).join("")}</ol>
+      </article>
     </div>
-  `).join("");
-  $("productGrid").querySelectorAll("[data-product]").forEach(btn => {
-    btn.onclick = (e) => {
-      if(e.target.tagName === "A") return;
-      activeProduct = Number(btn.dataset.product);
-      renderProducts();
-    };
-    btn.onkeydown = (e) => {
-      if(e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        activeProduct = Number(btn.dataset.product);
-        renderProducts();
-      }
-    };
-  });
-  const selected = products[activeProduct];
-  $("articleImg").src = imageUrl("realistic flat lay outfit explanation image featuring " + selected[3] + ", paired with matching clothes, editorial ecommerce, clean daylight", "landscape_4_3");
-  $("articleTitle").textContent = selected[0] + " 搭配讲解";
-  $("articleText").textContent = trend.article;
-  $("reasonList").innerHTML = trend.reasons.map(r => `<li>${r}</li>`).join("");
+  `;
 }
 
-function setTrend(id){
-  trend = trends.find(t => t.id === id) || trends[0];
-  category = "Coat";
+function show(view) {
+  document.querySelectorAll(".view").forEach(el => el.classList.remove("active"));
+  $(view + "View").classList.add("active");
+  document.querySelector(".screen").scrollTop = 0;
+}
+
+function setTrend(id) {
+  activeTrend = trends.find(t => t.id === id) || activeTrend;
+  activeCat = "Coat";
   activeProduct = 0;
-  renderAll();
 }
 
-function renderAll(){
+function renderAll() {
   renderHome();
-  renderTabs();
   renderChat();
-  renderProducts();
+  renderTryon();
 }
 
-$("sendBtn").onclick = () => {
-  const text = $("chatInput").value.toLowerCase();
-  if(text.includes("柔") || text.includes("周末") || text.includes("约会")) setTrend("soft");
-  else if(text.includes("夜") || text.includes("皮") || text.includes("酷")) setTrend("night");
-  else setTrend("city");
-};
-$("homeAsk").onsubmit = (e) => { e.preventDefault(); $("sendBtn").click(); };
-document.querySelectorAll("[data-query]").forEach(btn => btn.onclick = () => {
-  $("chatInput").value = btn.dataset.query === "Style an item" ? "用一件风衣搭一套完整通勤 look" : "根据我的身材和通勤场景推荐显高穿搭";
-  $("sendBtn").click();
+document.addEventListener("click", (e) => {
+  const target = e.target.closest("[data-action]");
+  if (!target) return;
+  const action = target.dataset.action;
+  if (target.dataset.trend) setTrend(target.dataset.trend);
+  if (action === "home") { renderAll(); show("home"); return; }
+  if (action === "chat") { renderAll(); show("chat"); return; }
+  if (action === "tryon") { renderAll(); show("tryon"); return; }
+  if (action === "cat") {
+    activeCat = target.dataset.cat;
+    activeProduct = 0;
+    renderTryon();
+    show("tryon");
+    return;
+  }
+  if (action === "product") {
+    if (e.target.tagName === "A") return;
+    activeProduct = Number(target.dataset.product) || 0;
+    renderTryon();
+    show("tryon");
+    return;
+  }
+  if (action === "smart-chat") {
+    const text = ($("chatInput")?.value || "").toLowerCase();
+    if (text.includes("soft") || text.includes("柔") || text.includes("约会")) setTrend("soft");
+    else if (text.includes("office") || text.includes("皮") || text.includes("酷")) setTrend("night");
+    else setTrend("city");
+    renderAll();
+    show("chat");
+  }
+});
+
+document.addEventListener("submit", (e) => {
+  e.preventDefault();
+  renderAll();
+  show("chat");
 });
 
 renderAll();
