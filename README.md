@@ -4,6 +4,9 @@
 
 项目为纯静态前端 Demo，使用 HTML、CSS、JavaScript 与本地 mock 数据实现，可直接通过 GitHub Pages 或本地 HTTP 服务访问。
 
+Fashion Lab 穿搭助手另提供真实多轮 AI 对话，使用 `bash start_fashion_assistant.sh` 启动。
+模型配置、使用边界和线上部署说明见 [Fashion Lab 文档](demo/fashion-assistant/README.md)。
+
 在线访问：https://coof-bao.github.io/Digital-Human-Anchor-Workspace/
 
 ## 项目简介

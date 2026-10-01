@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Fashion Lab · AI 导购助手 Demo</title>
+<title>Fashion Lab · AI 穿搭助手</title>
 <style>
   :root {
     --ink:#171717;
@@ -232,7 +232,7 @@
   }
 </style>
 <link rel="stylesheet" href="home.css?v=20261001" />
-<link rel="stylesheet" href="chat.css?v=20261001-2" />
+<link rel="stylesheet" href="chat.css?v=20261001-3" />
 </head>
 <body>
 <main class="stage">
@@ -448,13 +448,13 @@ function renderHome() {
   $("homeView").innerHTML = `
     <div class="home-intro">
       <div class="device-status" aria-hidden="true"><span>8:00</span><span>${icon("signal")}${icon("wifi")}${icon("battery")}</span></div>
-      <nav class="home-nav" aria-label="Fashion Lab"><a href="../index.html" aria-label="返回 Demo 入口">${icon("back")}</a><strong>Fashion Lab</strong></nav>
+      <nav class="home-nav" aria-label="Fashion Lab"><a href="https://coof-bao.github.io/Digital-Human-Anchor-Workspace/demo/index.html" aria-label="返回 Demo 入口">${icon("back")}</a><strong>Fashion Lab</strong></nav>
       <div class="ootd">
         <div class="ootd-portrait">${img("editorial studio portrait photograph of a fashionable young adult woman wearing a black baseball cap and narrow black sunglasses, oversized black and cream varsity leather jacket open over a black cropped top, framed from head to hip, facing forward, isolated on a pure white background, high key studio lighting, realistic skin and leather texture, no shadows on background, no text, no phone, no interface", "portrait_4_3", "Black cap and two-tone jacket daily look", "eager")}</div>
         <div class="ootd-copy"><h1>Hi Jenny,<br>OOTD</h1><p>Get your daily look</p><button data-action="chat" data-query="Inspirations for today's outfit" aria-label="Get your daily look">${icon("arrow")}</button></div>
       </div>
       <form class="home-ask" id="homeAsk">
-        <input id="homeQuery" placeholder="Ask your AI stylist anything" aria-label="Ask your AI stylist anything" autocomplete="off">
+        <input id="homeQuery" placeholder="Ask your AI stylist anything" aria-label="Ask your AI stylist anything" autocomplete="off" maxlength="2000">
         <button type="submit" aria-label="Ask AI">${icon("mic")}</button>
       </form>
       <div class="home-shortcuts" aria-label="Styling shortcuts">
@@ -511,7 +511,8 @@ function renderHome() {
 
 function renderTryon() {
   const cats = Object.keys(activeTrend.products);
-  const products = activeTrend.products[activeCat] || activeTrend.products.Coat;
+  if (!cats.includes(activeCat)) activeCat = cats[0];
+  const products = activeTrend.products[activeCat];
   const selected = products[activeProduct] || products[0];
   $("tryonView").innerHTML = `
     ${phoneHead({ back:true, right:"Ask AI" })}
@@ -519,12 +520,12 @@ function renderTryon() {
       ${img(activeTrend.hero, "portrait_4_3", activeTrend.title)}
       <div class="tryon-meta">
         <div class="tryon-top"><span>Fashion Lab</span><span>Ask AI</span></div>
-        <button class="buy" type="button">Buy all</button>
+        ${activeTrend.generated ? '<span class="preview-caption">AI outfit preview</span>' : '<button class="buy" type="button">Buy all</button>'}
       </div>
       <div class="price-stack">
         ${cats.slice(0,4).map(cat => {
-          const p = activeTrend.products[cat][chosenProducts[cat]];
-          return `<div class="price-chip">${img(p[3], "square", p[0])}<b>${p[2]}</b></div>`;
+          const p = activeTrend.products[cat][chosenProducts[cat] || 0];
+          return `<div class="price-chip">${img(p[3], "square", p[0])}<b>${escapeHTML(p[2] || cat)}</b></div>`;
         }).join("")}
       </div>
     </div>
@@ -538,10 +539,10 @@ function renderTryon() {
           <div class="product ${idx === activeProduct ? "active" : ""}" data-action="product" data-product="${idx}" role="button" tabindex="0" aria-pressed="${idx === activeProduct}">
             <div class="thumb">${img(p[3], "square", p[0])}</div>
             <div class="product-copy">
-              <b>${p[0]}</b>
-              <span>${p[1]}</span>
-              <strong>${p[2]}</strong>
-              <a href="https://www.tiktok.com/shop" target="_blank" rel="noreferrer">View item</a>
+              <b>${escapeHTML(p[0])}</b>
+              <span>${escapeHTML(p[1])}</span>
+              ${p[2] ? `<strong>${escapeHTML(p[2])}</strong>` : ""}
+              <a href="https://www.google.com/search?tbm=shop&amp;q=${encodeURIComponent(p[4] || p[0] + " " + p[1])}" target="_blank" rel="noreferrer">Find similar</a>
             </div>
           </div>
         `).join("")}
@@ -550,9 +551,9 @@ function renderTryon() {
     <div class="story">
       <div class="thumb">${img("realistic outfit editorial detail shot featuring " + selected[3] + ", styled with matching clothes, clean ecommerce magazine layout", "landscape_4_3", selected[0])}</div>
       <article>
-        <h2>${selected[0]} 搭配讲解</h2>
-        <p>${activeTrend.article}</p>
-        <ol>${activeTrend.reasons.map(r => `<li>${r}</li>`).join("")}</ol>
+        <h2>${escapeHTML(selected[0])} 搭配讲解</h2>
+        <p>${escapeHTML(activeTrend.article)}</p>
+        <ol>${activeTrend.reasons.map(r => `<li>${escapeHTML(r)}</li>`).join("")}</ol>
       </article>
     </div>
   `;
@@ -579,9 +580,9 @@ function goBack() {
 
 function setTrend(id) {
   activeTrend = trends.find(t => t.id === id) || activeTrend;
-  activeCat = "Coat";
+  activeCat = Object.keys(activeTrend.products)[0];
   activeProduct = 0;
-  Object.keys(chosenProducts).forEach(cat => chosenProducts[cat] = 0);
+  Object.keys(activeTrend.products).forEach(cat => chosenProducts[cat] = 0);
 }
 
 function refreshProducts() {
@@ -602,7 +603,7 @@ document.addEventListener("click", (e) => {
     if (currentView === "tryon" && ["chat", "item"].includes(navigation.at(-1))) {
       goBack();
     } else {
-      startStylist(target.dataset.query || activeTrend.ask, target.dataset.trend || (currentView === "home" ? "daily" : activeTrend.id));
+      startStylist(target.dataset.query || activeTrend.ask);
     }
     return;
   }
@@ -647,6 +648,7 @@ document.addEventListener("keydown", (e) => {
 
 renderHome();
 </script>
-<script src="chat.js?v=20261001-2"></script>
+<script src="api-config.js?v=20261001-3"></script>
+<script src="chat.js?v=20261001-3"></script>
 </body>
 </html>
