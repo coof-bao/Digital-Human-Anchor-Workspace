@@ -103,79 +103,6 @@
   .view { display:none; min-height:100%; }
   .view.active { display:block; }
 
-  .chat-body { padding:12px 13px 18px; }
-  .bubble {
-    max-width:86%;
-    border-radius:16px;
-    padding:11px 12px;
-    font-size:12px;
-    line-height:1.55;
-    margin:8px 0;
-  }
-  .bubble.user { margin-left:auto; background:#e8f2ec; }
-  .bubble.ai { background:#fff; border:1px solid var(--line); }
-  .answer {
-    margin-top:10px;
-    border:1px solid var(--line);
-    border-radius:16px;
-    background:#fff;
-    overflow:hidden;
-  }
-  .answer-copy { padding:13px; }
-  .answer-copy h2 { margin:0 0 8px; font-size:17px; line-height:1.15; }
-  .answer-copy p { margin:0 0 10px; color:#444; font-size:12px; line-height:1.62; }
-  .tag {
-    display:inline-flex;
-    border-radius:999px;
-    background:#f2f0eb;
-    padding:4px 8px;
-    font-size:10px;
-    font-weight:850;
-    color:#555;
-    margin:0 4px 4px 0;
-  }
-  .chat-look {
-    margin:0 13px 13px;
-    border:1px solid var(--line);
-    border-radius:13px;
-    overflow:hidden;
-    background:#fbfaf8;
-    text-align:left;
-  }
-  .chat-look .thumb { border-radius:0; aspect-ratio:4/3; }
-  .chat-look div:last-child { padding:10px; }
-  .chat-look b { display:block; font-size:12px; margin-bottom:5px; }
-  .chat-look span { display:block; color:var(--muted); font-size:11px; line-height:1.35; }
-  .option-list { display:grid; gap:7px; margin-top:10px; }
-  .option-list button {
-    border:1px solid var(--line);
-    border-radius:10px;
-    background:#fbfaf8;
-    text-align:left;
-    padding:9px 10px;
-    font-size:11px;
-    font-weight:800;
-  }
-  .composer {
-    position:sticky;
-    bottom:0;
-    display:flex;
-    gap:8px;
-    padding:10px 12px 12px;
-    border-top:1px solid var(--line);
-    background:rgba(251,250,248,.94);
-    backdrop-filter:blur(12px);
-  }
-  .composer input {
-    flex:1;
-    min-width:0;
-    border:1px solid var(--line);
-    border-radius:999px;
-    padding:10px 12px;
-    outline:0;
-    font-size:12px;
-  }
-
   .tryon-hero {
     margin:0 12px 10px;
     aspect-ratio:9/13.5;
@@ -305,6 +232,7 @@
   }
 </style>
 <link rel="stylesheet" href="home.css?v=20261001" />
+<link rel="stylesheet" href="chat.css?v=20261001-2" />
 </head>
 <body>
 <main class="stage">
@@ -312,6 +240,7 @@
     <div class="screen">
       <div class="view active" id="homeView"></div>
       <div class="view" id="chatView"></div>
+      <div class="view" id="itemView"></div>
       <div class="view" id="tryonView"></div>
     </div>
   </section>
@@ -451,10 +380,9 @@ const trends = [
 let activeTrend = trends[0];
 let activeCat = "Coat";
 let activeProduct = 0;
-let chatQuery = "";
 let currentView = "home";
 const navigation = [];
-const scrollPositions = { home:0, chat:0, tryon:0 };
+const scrollPositions = { home:0, chat:0, item:0, tryon:0 };
 const chosenProducts = { Coat:0, Top:0, Pants:0, Shoes:0 };
 
 const $ = (id) => document.getElementById(id);
@@ -530,7 +458,7 @@ function renderHome() {
         <button type="submit" aria-label="Ask AI">${icon("mic")}</button>
       </form>
       <div class="home-shortcuts" aria-label="Styling shortcuts">
-        <button class="shortcut" data-action="chat" data-trend="night" data-query="How can I style a black leather jacket?">${icon("item")}<span><b>Style an item</b><small>Build full outfits</small></span></button>
+        <button class="shortcut" data-action="style-item">${icon("item")}<span><b>Style an item</b><small>Build full outfits</small></span></button>
         <button class="shortcut" data-action="chat" data-query="Help me find a look that suits me">${icon("fit")}<span><b>What suits me</b><small>Find my style</small></span></button>
         <button class="shortcut icon-only" data-action="chat" data-query="Surprise me with a new look" aria-label="Discover a new look">${icon("sparkle")}</button>
       </div>
@@ -578,41 +506,6 @@ function renderHome() {
       </div>
     </section>
     <p class="home-end">A little inspiration, a look that's you.</p>
-  `;
-}
-
-function renderChat() {
-  $("chatView").innerHTML = `
-    ${phoneHead({ back:true, right:"Close" })}
-    <div class="chat-body">
-      <div class="bubble user">${escapeHTML(chatQuery || activeTrend.ask)}</div>
-      <div class="bubble ai">Let's build your look around ${escapeHTML(activeTrend.tab.toLowerCase())}. Explore the pieces below, or tell me what you would change.</div>
-      <div class="answer">
-        <div class="answer-copy">
-          <h2>${activeTrend.title}</h2>
-          <p>${activeTrend.answer}</p>
-          <span class="tag">${activeTrend.tab}</span>
-          <span class="tag">Daily styling</span>
-          <span class="tag">Shoppable look</span>
-          <div class="option-list">
-            <button data-action="chat" data-trend="soft">Make it softer</button>
-            <button data-action="chat" data-trend="city">Add more layers</button>
-            <button data-action="chat" data-trend="night">Make it office-friendly</button>
-          </div>
-        </div>
-        <button class="chat-look" data-action="tryon" data-trend="${activeTrend.id}">
-          <div class="thumb">${img(activeTrend.flatlay, "landscape_4_3", activeTrend.title)}</div>
-          <div>
-            <b>Try it on</b>
-            <span>Open this look and rebuild it with exact products.</span>
-          </div>
-        </button>
-      </div>
-    </div>
-    <form class="composer" id="chatForm">
-      <input id="chatInput" placeholder="Tell me what to change..." aria-label="Tell me what to change" autocomplete="off">
-      <button class="round" type="submit" aria-label="Send">↗</button>
-    </form>
   `;
 }
 
@@ -674,7 +567,10 @@ function show(view, { back = false } = {}) {
   document.querySelectorAll(".view").forEach(el => el.classList.remove("active"));
   $(view + "View").classList.add("active");
   currentView = view;
+  screen.classList.toggle("conversation-open", view === "chat" || view === "item");
   screen.scrollTop = back ? scrollPositions[view] : 0;
+  stopVoiceInput();
+  if (view === "item" && !$("itemSheet").hidden) focusItemSheet();
 }
 
 function goBack() {
@@ -686,17 +582,6 @@ function setTrend(id) {
   activeCat = "Coat";
   activeProduct = 0;
   Object.keys(chosenProducts).forEach(cat => chosenProducts[cat] = 0);
-}
-
-function askStylist(query) {
-  chatQuery = query.trim() || activeTrend.ask;
-  const text = chatQuery.toLowerCase();
-  if (/soft|柔|周末|约会|cream/.test(text)) setTrend("soft");
-  else if (/suit|tailor|西装/.test(text)) setTrend("tailored");
-  else if (/leather|皮|酷|office/.test(text)) setTrend("night");
-  else if (/layer|denim|牛仔|通勤|daily|outfit/.test(text)) setTrend("city");
-  renderChat();
-  show("chat");
 }
 
 function refreshProducts() {
@@ -712,15 +597,18 @@ document.addEventListener("click", (e) => {
   if (!target) return;
   const action = target.dataset.action;
   if (action === "back") { goBack(); return; }
-  if (target.dataset.trend && currentView === "home") setTrend(target.dataset.trend);
+  if (action === "style-item") { openItemStylist(); return; }
   if (action === "chat") {
-    if (target.dataset.trend) setTrend(target.dataset.trend);
-    chatQuery = target.dataset.query || activeTrend.ask;
-    renderChat();
-    show("chat");
+    if (currentView === "tryon" && ["chat", "item"].includes(navigation.at(-1))) {
+      goBack();
+    } else {
+      startStylist(target.dataset.query || activeTrend.ask, target.dataset.trend || (currentView === "home" ? "daily" : activeTrend.id));
+    }
     return;
   }
   if (action === "tryon" || action === "shop-item") {
+    if (target.dataset.trend) setTrend(target.dataset.trend);
+    if (action === "tryon" && target.dataset.cat) activeCat = target.dataset.cat;
     if (action === "shop-item") {
       activeCat = target.dataset.cat;
       activeProduct = Number(target.dataset.product || 0);
@@ -757,13 +645,8 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-document.addEventListener("submit", (e) => {
-  if (e.target.id !== "homeAsk" && e.target.id !== "chatForm") return;
-  e.preventDefault();
-  askStylist(e.target.querySelector("input").value);
-});
-
 renderHome();
 </script>
+<script src="chat.js?v=20261001-2"></script>
 </body>
 </html>
